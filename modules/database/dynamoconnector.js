@@ -17,7 +17,130 @@ AWS.config.update({
 });
 var DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
 
+function initArtifactTables() {
+    //ARTIFACT_EVENT
+    var params = {
+        AttributeDefinitions: [
+            {
+                AttributeName: 'ARTIFACT_NAME',
+                AttributeType: 'S'
+            },
+            {
+                AttributeName: 'EVENT_ID',
+                AttributeType: 'S'
+            }
+        ],
+        KeySchema: [
+            {
+                AttributeName: 'ARTIFACT_NAME',
+                KeyType: 'HASH'
+            },
+            {
+                AttributeName: 'EVENT_ID',
+                KeyType: 'RANGE'
+            }
+        ],
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+        },
+        TableName: 'ARTIFACT_EVENT',
+        StreamSpecification: {
+            StreamEnabled: false
+        }
+    };
 
+    // Call DynamoDB to create the table
+    DDB.createTable(params, function (err, data) {
+        if (err) {
+            console.log("Error", err);
+        } else {
+            console.log("Table Created");
+        }
+    });
+
+    //ARTIFACT_USAGE
+    var params1 = {
+        AttributeDefinitions: [
+            {
+                AttributeName: 'ARTIFACT_NAME',
+                AttributeType: 'S'
+            },
+            {
+                AttributeName: 'CASE_ID',
+                AttributeType: 'S'
+            }
+        ],
+        KeySchema: [
+            {
+                AttributeName: 'ARTIFACT_NAME',
+                KeyType: 'HASH'
+            },
+            {
+                AttributeName: 'CASE_ID',
+                KeyType: 'RANGE'
+            }
+        ],
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+        },
+        TableName: 'ARTIFACT_USAGE',
+        StreamSpecification: {
+            StreamEnabled: false
+        }
+    };
+
+    // Call DynamoDB to create the table
+    DDB.createTable(params1, function (err, data) {
+        if (err) {
+            console.log("Error", err);
+        } else {
+            console.log("Table Created");
+        }
+    });
+
+    //ARTIFACT_DEFINITION
+    var params2 = {
+        AttributeDefinitions: [
+            {
+                AttributeName: 'ARTIFACT_TYPE',
+                AttributeType: 'S'
+            },
+            {
+                AttributeName: 'ARTIFACT_ID',
+                AttributeType: 'S'
+            }
+        ],
+        KeySchema: [
+            {
+                AttributeName: 'ARTIFACT_TYPE',
+                KeyType: 'HASH'
+            },
+            {
+                AttributeName: 'ARTIFACT_ID',
+                KeyType: 'RANGE'
+            }
+        ],
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+        },
+        TableName: 'ARTIFACT_DEFINITION',
+        StreamSpecification: {
+            StreamEnabled: false
+        }
+    };
+
+    // Call DynamoDB to create the table
+    DDB.createTable(params2, function (err, data) {
+        if (err) {
+            console.log("Error", err);
+        } else {
+            console.log("Table Created");
+        }
+    });
+}
 function databaseInit() {
     //Artifact Definition Table
     var params = {
@@ -289,14 +412,14 @@ function writeItem(tablename, pk, sk, attr) {
     }
 
     // Call DynamoDB to add the item to the table
-    DDB.putItem(params, function (err, data) {
+    return DDB.putItem(params, function (err, data) {
         if (err) {
             LOG.logWorker('ERROR', `DDB writing to [${tablename}] ->[${pk.value}]:[${sk.value}] was not successfull`, module.id)
             console.log("Error", err);
         } else {
             LOG.logWorker('DEBUG', `DDB writing to [${tablename}] ->[${pk.value}]:[${sk.value}] finished`, module.id)
         }
-    });
+    }).promise();
 }
 
 async function readItem(tablename, pk, sk, requestedfields) {
@@ -375,6 +498,62 @@ function updateItem(tablename, pk, sk, attr) {
     });
 }
 
+async function initNestedList(tablename, pk, sk, listattribute) {
+    if (!sk) {
+        var sk = { value: '' }
+    }
+    var key = {}
+    key[pk.name] = { 'S': pk.value }
+    if (sk && sk.value != '') {
+        key[sk.name] = { 'S': sk.value }
+    }
+    
+    var updateexpression = `SET ${listattribute} = :newlist`
+    var expressionattributevalues = { ":newlist": { L: [] } }
+
+    var params = {
+        ExpressionAttributeValues: expressionattributevalues,
+        Key: key,
+        ReturnValues: "ALL_NEW",
+        TableName: tablename,
+        UpdateExpression: updateexpression//"SET #0 = :0"
+    };
+    return DDB.updateItem(params, function (err, data) {
+        if (err) console.log(err, err.stack); // an error occurred
+        else console.log(data);           // successful response
+    }).promise()
+}
+
+async function appendNestedListItem(tablename, pk, sk, listattribute, newelements, attr) {
+    if (!sk) {
+        var sk = { value: '' }
+    }
+    var key = {}
+    key[pk.name] = { 'S': pk.value }
+    if (sk && sk.value != '') {
+        key[sk.name] = { 'S': sk.value }
+    }
+    var updateexpression = `SET ${listattribute} = list_append(${listattribute}, :newdata)`
+    var expressionattributevalues = { ":newdata": { L: [] } }
+    for (i in newelements) {
+        var buff = {}
+        buff[newelements[i].type] = newelements[i].value
+        expressionattributevalues[':newdata']['L'].push(buff)
+    }
+
+    var params = {
+        ExpressionAttributeValues: expressionattributevalues,
+        Key: key,
+        ReturnValues: "ALL_NEW",
+        TableName: tablename,
+        UpdateExpression: updateexpression//"SET #0 = :0"
+    };
+    return DDB.updateItem(params, function (err, data) {
+        if (err) console.log(err, err.stack); // an error occurred
+        else console.log(data);           // successful response
+    }).promise();
+}
+
 function deleteItem(tablename, pk, sk, conditionexpression) {
     if (!sk) {
         var sk = { value: '' }
@@ -402,166 +581,30 @@ function deleteItem(tablename, pk, sk, conditionexpression) {
     });
 }
 
-//EVENT OPERATIONS
-//ARTIFACT EVENTS
-function writeArtifactEvent(processName, artifactType, artifactId, eventid, artifactState, utcTimeStamp) {
-    var pk = { name: 'PROCESS_NAME', value: processName }
-    var sk = { name: 'EVENT_ID', value: eventid.toString() }
-    var attributes = []
-    attributes.push({ name: 'TIME', type: 'N', value: utcTimeStamp.toString() })
-    attributes.push({ name: 'ARTIFACT_TYPE', value: artifactType })
-    attributes.push({ name: 'ARTIFACT_ID', value: artifactId })
-    attributes.push({ name: 'STATE', value: artifactState })
+//keyconditionexpression: 'id = :hashKey and createdAt > :rangeKey'
+/*ExpressionAttributeValues: {
+                ':hashKey': '123',
+                ':rangeKey': 20150101
+            },*/
+async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression) {
 
-    writeItem('ARTIFACT_EVENT', pk, sk, attributes)
-}
+    let result, ExclusiveStartKey;
+    var accumulated = []
+    do {
+        result = await DDB.query({
+            TableName: tablename,
+            ExclusiveStartKey,
+            Limit: 1,
+            KeyConditionExpression: keyconditionexpression,
+            ExpressionAttributeValues: expressionattributevalues,
+            FilterExpression: filterexpression
+        }).promise();
 
-//function deleteArtifactEvent(processName, )
+        ExclusiveStartKey = result.LastEvaluatedKey;
+        accumulated = [...accumulated, ...result.Items];
+    } while (result.Items.length && result.LastEvaluatedKey);
 
-//STAGE EVENTS
-function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
-
-    var pk = { name: 'PROCESS_NAME', value: processName }
-    var sk = { name: 'EVENT_ID', value: eventid.toString() }
-    var attributes = []
-    attributes.push({ name: 'TIME', type: 'N', value: utcTimeStamp.toString() })
-    attributes.push({ name: 'STAGE_DETAILS', value: stageDetails })
-    writeItem('STAGE_EVENT', pk, sk, attributes)
-}
-
-//ARTIFACT DEFINITION OPERATIONS
-//Stakeholders should be a list of Strings
-function writeNewArtifactDefinition(artifactType, artifactId, stakeholders) {
-    var pk = { name: 'TYPE', value: artifactType }
-    var sk = { name: 'ID', value: artifactId }
-    var attributes = []
-    attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
-    attributes.push({ name: 'ATTACHED_TO', type: 'SS', value: ['ROOT'] })
-    writeItem('ARTIFACT_DEFINITION', pk, sk, attributes)
-}
-
-//Should be called when an artifact is attached/detached from a process
-function addArtifactAttachment(artifactType, artifactId, processName) {
-    readItem('ARTIFACT_DEFINITION', { name: 'TYPE', value: artifactType, }, { name: 'ID', value: artifactId }, 'ATTACHED_TO')
-        .then(function (data) {
-            var processes = []
-            if (data.Item.ATTACHED_TO) {
-                console.log(data.Item.ATTACHED_TO.SS)
-                if (data.Item.ATTACHED_TO.SS.includes(processName)) {
-                    return
-                }
-                processes = [...data.Item.ATTACHED_TO.SS];
-            }
-            processes.push(processName)
-            updateItem('ARTIFACT_DEFINITION',
-                { name: 'TYPE', value: artifactType },
-                { name: 'ID', value: artifactId },
-                [{ name: 'ATTACHED_TO', type: 'SS', value: processes }])
-        }).catch(err => { console.log('error:' + err) })
-}
-
-function removeArtifactAttachment(artifactType, artifactId, processName) {
-    readItem('ARTIFACT_DEFINITION', { name: 'TYPE', value: artifactType, }, { name: 'ID', value: artifactId }, 'ATTACHED_TO')
-        .then(function (data) {
-            var processes = []
-            if (!data.Item.ATTACHED_TO) {
-                return
-            }
-            else {
-                console.log(data.Item.ATTACHED_TO.SS)
-                if (!data.Item.ATTACHED_TO.SS.includes(processName)) {
-                    return
-                }
-                for (var i = 0; i < data.Item.ATTACHED_TO.SS.length; i++) {
-                    if (data.Item.ATTACHED_TO.SS[i] === processName) {
-                        data.Item.ATTACHED_TO.SS.splice(i, 1);
-                    }
-                }
-                processes = [...data.Item.ATTACHED_TO.SS];
-                updateItem('ARTIFACT_DEFINITION',
-                    { name: 'TYPE', value: artifactType },
-                    { name: 'ID', value: artifactId },
-                    [{ name: 'ATTACHED_TO', type: 'SS', value: processes }])
-            }
-        }).catch(err => { console.log('error:' + err) })
-}
-
-function deleteArtifact(artifactType, artifactId) {
-    throw new Error('Non-implemented function')
-}
-
-//PROCESS DEFINITION OPERATIONS
-function writeNewProcessDefinition(processType, processID, stakeholders, groups, status) {
-    var pk = { name: 'TYPE', value: processType }
-    var sk = { name: 'ID', value: processID }
-    if (groups.length == 0) {
-        groups.push('ROOT')
-    }
-    var attributes = []
-    attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
-    attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
-    attributes.push({ name: 'STATUS', type: 'S', value: status })
-    writeItem('PROCESS_DEFINITION', pk, sk, attributes)
-}
-
-function updateProcessState(processType, processId, newState) {
-    updateItem('PROCESS_DEFINITION',
-        { name: 'TYPE', value: processType },
-        { name: 'ID', value: processId },
-        [{ name: 'STATUS', type: 'S', value: newState }])
-}
-
-//PROCESS_GROUP_DEFINITION Table operations
-function writeNewProcessGroup(groupname) {
-    var pk = { name: 'NAME', value: groupname }
-    var attributes = []
-    attributes.push({ name: 'PROCESSES', type: 'SS', value: ['ROOT'] })
-    writeItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
-}
-
-function addProcessToProcessGroup(groupname, processName) {
-    readItem('PROCESS_GROUP_DEFINITION', { name: 'NAME', value: groupname })
-        .then(function (data) {
-            var processes = []
-            if (data.Item.PROCESSES) {
-                console.log(data.Item.PROCESSES.SS)
-                if (data.Item.PROCESSES.SS.includes(processName)) {
-                    return
-                }
-                processes = [...data.Item.PROCESSES.SS];
-            }
-            processes.push(processName)
-            updateItem('PROCESS_GROUP_DEFINITION',
-                { name: 'NAME', value: groupname },
-                undefined,
-                [{ name: 'PROCESSES', type: 'SS', value: processes }])
-        }).catch(err => { console.log('error:' + err) })
-}
-
-function removeProcessFromProcessGroup(groupname, processName) {
-    readItem('PROCESS_GROUP_DEFINITION', { name: 'NAME', value: groupname })
-        .then(function (data) {
-            var processes = []
-            if (!data.Item.PROCESSES) {
-                return
-            }
-            else {
-                console.log(data.Item.PROCESSES.SS)
-                if (!data.Item.PROCESSES.SS.includes(processName)) {
-                    return
-                }
-                for (var i = 0; i < data.Item.PROCESSES.SS.length; i++) {
-                    if (data.Item.PROCESSES.SS[i] === processName) {
-                        data.Item.PROCESSES.SS.splice(i, 1);
-                    }
-                }
-                processes = [...data.Item.PROCESSES.SS];
-                updateItem('PROCESS_GROUP_DEFINITION',
-                    { name: 'NAME', value: groupname },
-                    undefined,
-                    [{ name: 'PROCESSES', type: 'SS', value: processes }])
-            }
-        }).catch(err => { console.log('error:' + err) })
+    return accumulated;
 }
 
 //writeNewProcessGroup('group001')
@@ -579,7 +622,7 @@ function removeProcessFromProcessGroup(groupname, processName) {
 //writeArtifactEvent('process1', 'truck', '0001', 'attached')
 //writeArtifactEvent('process1', 'truck', '0001', 'detached')
 /*var params = { 
-    TableName : 'STAGE_EVENT'
+    TableName : 'ARTIFACT_EVENT'
 };
 
 
@@ -593,33 +636,35 @@ DDB.deleteTable(params, function(err, data) {
 
 
 
-
-
-var table = "ARTIFACT_EVENT";
-var year_val = 'process1';
-var params = {
-    TableName: table,
-    KeyConditionExpression: 'TYPE = :hkey',
-    ExpressionAttributeValues: {
-        ':hkey': { S: 'year_val' }
-    }
-};
-
-DDB.query(params, function (err, data) {
-    if (err) {
-        console.error("Unable to read item. Error JSON:", JSON.stringify(err,
-            null, 2));
-    } else {
-        console.log("GetItem succeeded:", JSON.stringify(data, null, 2));
-    }
-});
-
-
 module.exports = {
-    registerEngine: function (engineid) {
-        return registerEngine(engineid)
-    },
-    writeArtifactEvent: writeArtifactEvent,
-    writeStageEvent: writeStageEvent
+    writeItem: writeItem,
+    readItem: readItem,
+    updateItem: updateItem,
+    initNestedList:initNestedList,
+    appendNestedListItem: appendNestedListItem,
+    deleteItem: deleteItem,
+    query: query
 
 }
+/*
+readItem('ARTIFACT_EVENT', { name: 'ARTIFACT_NAME', value: 'truck/0001' }, { name: 'EVENT_ID', value: '2' }).then((data) => {
+    console.log(data)
+})*/
+/*query().then((data) => {
+    console.log(data)
+})*/
+
+var expressionattributevalues = {
+    ':hashKey': { S: 'truck/0001' },
+    //':rangeKey': { N: '1' },
+    ':b': { N: '1' }
+}
+//query('ARTIFACT_EVENT', 'ARTIFACT_NAME = :hashKey', expressionattributevalues, 'ENTRY_PROCESSED = :b').then((data) => {
+//    console.log('ok')
+//})
+
+//initArtifactTables()
+
+//var pk = { name: 'ARTIFACT_TYPE', value: 'truck' }
+//var sk = { name: 'ARTIFACT_ID', value: '0003' }
+//updateNestedListItem('ARTIFACT_DEFINITION', pk, sk)

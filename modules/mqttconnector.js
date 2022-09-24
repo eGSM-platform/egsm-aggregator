@@ -1,5 +1,5 @@
 var mqtt = require("mqtt")
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('./auxiliary/LogManager')
 
 module.id = "MQTT"
 
