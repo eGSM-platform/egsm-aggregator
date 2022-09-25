@@ -455,7 +455,7 @@ async function readItem(tablename, pk, sk, requestedfields) {
     });
 }
 
-function updateItem(tablename, pk, sk, attr) {
+async function updateItem(tablename, pk, sk, attr) {
     if (!sk) {
         var sk = { value: '' }
     }
@@ -492,10 +492,10 @@ function updateItem(tablename, pk, sk, attr) {
         TableName: tablename,
         UpdateExpression: updateexpression//"SET #0 = :0"
     };
-    DDB.updateItem(params, function (err, data) {
-        if (err) console.log(err, err.stack); // an error occurred
-        else console.log(data);           // successful response
-    });
+    return DDB.updateItem(params, function (err, data) {
+        //if (err) console.log(err, err.stack); // an error occurred
+        //else console.log(data);           // successful response
+    }).promise();
 }
 
 async function initNestedList(tablename, pk, sk, listattribute) {
@@ -520,7 +520,7 @@ async function initNestedList(tablename, pk, sk, listattribute) {
     };
     return DDB.updateItem(params, function (err, data) {
         if (err) console.log(err, err.stack); // an error occurred
-        else console.log(data);           // successful response
+        //else console.log(data);           // successful response
     }).promise()
 }
 
@@ -554,7 +554,7 @@ async function appendNestedListItem(tablename, pk, sk, listattribute, newelement
     }).promise();
 }
 
-function deleteItem(tablename, pk, sk, conditionexpression) {
+function deleteItem(tablename, pk, sk, expressionattributevalues, conditionexpression) {
     if (!sk) {
         var sk = { value: '' }
     }
@@ -567,6 +567,9 @@ function deleteItem(tablename, pk, sk, conditionexpression) {
         TableName: tablename,
         Key: key
     };
+    if(expressionattributevalues){
+        params['ExpressionAttributeValues'] = expressionattributevalues
+    }
     if (conditionexpression) {
         params['ConditionExpression'] = conditionexpression
     }
@@ -586,7 +589,7 @@ function deleteItem(tablename, pk, sk, conditionexpression) {
                 ':hashKey': '123',
                 ':rangeKey': 20150101
             },*/
-async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression) {
+async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression, projectionexpression) {
 
     let result, ExclusiveStartKey;
     var accumulated = []
@@ -597,12 +600,13 @@ async function query(tablename, keyconditionexpression, expressionattributevalue
             Limit: 1,
             KeyConditionExpression: keyconditionexpression,
             ExpressionAttributeValues: expressionattributevalues,
-            FilterExpression: filterexpression
+            FilterExpression: filterexpression,
+            ProjectionExpression: projectionexpression
         }).promise();
 
         ExclusiveStartKey = result.LastEvaluatedKey;
         accumulated = [...accumulated, ...result.Items];
-    } while (result.Items.length && result.LastEvaluatedKey);
+    } while (result.LastEvaluatedKey);
 
     return accumulated;
 }
