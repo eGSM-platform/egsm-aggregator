@@ -198,11 +198,11 @@ async function deleteArtifactTables() {
 
 beforeEach(async () => {
     LOG.setLogLevel(5)
-    //await initArtifactTables();
+    await initArtifactTables();
 });
 
 afterEach(async () => {
-    //await deleteArtifactTables()
+    await deleteArtifactTables()
 })
 
 //TEST CASES BEGIN
@@ -431,12 +431,236 @@ test('[getArtifactFaultyRateLatest] [WRITE AND READ]', async () => {
 
 
 //EVENT RELATED TESTS
-/*test('[writeArtifactEvent] [WRITE AND READ]', async () => {
+test('[writeArtifactEvent] [WRITE AND READ]', async () => {
+    //Writing Artifact Event
+    var eventDetailJson = {
+        timestamp: 1000,
+        artifact_name: 'artifact/instance1',
+        artifact_state: 'attached',
+        process_type: 'process_type1',
+        process_id: '001',
+        event_id: 'event-001'
+    }
+    await DB.writeArtifactEvent(eventDetailJson)
 
-})*/
-
-
-test('[readUnprocessedArtifactEvents] [WRITE AND READ]', async () => {
+    var pk = { name: 'ARTIFACT_NAME', value: 'artifact/instance1' }
+    var sk = { name: 'EVENT_ID', value: 'event-001' }
+    const data = await DYNAMO.readItem('ARTIFACT_EVENT', pk, sk)
+    var expected = {
+        Item: {
+            ARTIFACT_NAME: { S: 'artifact/instance1' },
+            EVENT_ID: { S: 'event-001' },
+            UTC_TIME: { N: '1000' },
+            ARTIFACT_STATE: { S: 'attached' },
+            PROCESS_TYPE: { S: 'process_type1' },
+            PROCESS_ID: { S: '001' },
+            ENTRY_PROCESSED: { N: '0' }
+        }
+    }
+    expect(data).toEqual(expected)
 
 })
 
+
+test('[readUnprocessedArtifactEvents] [WRITE AND READ]', async () => {
+    //Writing Artifact Events
+    for (var i = 0; i < 5; i++) {
+        var eventDetailJson = {
+            timestamp: 1000,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`
+        }
+        await DB.writeArtifactEvent(eventDetailJson)
+    }
+
+    //Read unprocessed entries (all should be unprocessed)
+    var data1 = await DB.readUnprocessedArtifactEvents('artifact1/instance1')
+    var expected1 = []
+    for (var i = 0; i < 5; i++) {
+        expected1.push({
+            ARTIFACT_NAME: { S: 'artifact1/instance1' },
+            EVENT_ID: { S: `event-${i}` },
+            UTC_TIME: { N: '1000' },
+            ARTIFACT_STATE: { S: 'attached' },
+            PROCESS_TYPE: { S: 'process_type1' },
+            PROCESS_ID: { S: '001' },
+            ENTRY_PROCESSED: { N: '0' }
+        })
+    }
+    expect(data1).toEqual(expected1)
+})
+
+test('[readOlderArtifactEvents] [WRITE AND READ]', async () => {
+    //Writing Artifact Events
+    for (var i = 0; i < 15; i++) {
+        var eventDetailJson = {
+            timestamp: 1000 + i,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`
+        }
+        await DB.writeArtifactEvent(eventDetailJson)
+    }
+
+    //Read unprocessed entries (all should be unprocessed)
+    var data1 = await DB.readOlderArtifactEvents('artifact1/instance1', 1004)
+    var expected1 = []
+    for (var i = 0; i < 5; i++) {
+        expected1.push({
+            ARTIFACT_NAME: { S: 'artifact1/instance1' },
+            EVENT_ID: { S: `event-${i}` },
+            UTC_TIME: { N: `${1000 + i}` },
+            ARTIFACT_STATE: { S: 'attached' },
+            PROCESS_TYPE: { S: 'process_type1' },
+            PROCESS_ID: { S: '001' },
+            ENTRY_PROCESSED: { N: '0' }
+        })
+    }
+    expect(data1).toEqual(expected1)
+})
+
+test('[setArtifactEventToProcessed] [WRITE AND READ]', async () => {
+    //Writing Artifact Events
+    for (var i = 0; i < 2; i++) {
+        var eventDetailJson = {
+            timestamp: 1000 + i,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`
+        }
+        await DB.writeArtifactEvent(eventDetailJson)
+    }
+
+    for (var i = 0; i < 1; i++) {
+        await DB.setArtifactEventToProcessed('artifact1/instance1', `event-${i}`)
+    }
+
+    //Read unprocessed entries (all should be unprocessed)
+    var data1 = await DB.readUnprocessedArtifactEvents('artifact1/instance1')
+    var expected1 = []
+    for (var i = 1; i < 2; i++) {
+        expected1.push({
+            ARTIFACT_NAME: { S: 'artifact1/instance1' },
+            EVENT_ID: { S: `event-${i}` },
+            UTC_TIME: { N: `${1000 + i}` },
+            ARTIFACT_STATE: { S: 'attached' },
+            PROCESS_TYPE: { S: 'process_type1' },
+            PROCESS_ID: { S: '001' },
+            ENTRY_PROCESSED: { N: '0' }
+        })
+    }
+    expect(data1).toEqual(expected1)
+})
+
+test('[deleteArtifactEvent] [WRITE AND READ]', async () => {
+    //Writing Artifact Events
+    for (var i = 0; i < 15; i++) {
+        var eventDetailJson = {
+            timestamp: 1000 + i,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`
+        }
+        await DB.writeArtifactEvent(eventDetailJson)
+    }
+
+    for (var i = 0; i < 15; i++) {
+        await DB.deleteArtifactEvent('artifact1/instance1', `event-${i}`)
+    }
+
+    //Read unprocessed entries (all should be unprocessed)
+    var data1 = await DB.readUnprocessedArtifactEvents('artifact1/instance1')
+    var expected1 = []
+
+    expect(data1).toEqual(expected1)
+})
+
+test('[writeArtifactUsageEntry][readArtifactUsageEntries] [WRITE AND READ]', async () => {
+    for (var i = 0; i < 5; i++) {
+        await DB.writeArtifactUsageEntry('truck/001', `case_${i}`, 1000 + 1, 1500 + i, 'dummy', 'instance_1', 'success')
+    }
+    for (var i = 0; i < 5; i++) {
+        await DB.writeArtifactUsageEntry('truck/001', `case_${i + 10}`, 1000 + 1, 1250 + i, 'dummy', 'instance_1', 'success')
+    }
+
+    var data1 = await DB.readArtifactUsageEntries('truck/001', 1500, 1500)
+    var expected1 = [{
+        "ARTIFACT_NAME": "truck/001",
+        "ATTACHED_TIME": "1001",
+        "CASE_ID": "case_0",
+        "DETACHED_TIME": "1500",
+        "OUTCOME": "success",
+        "PROCESS_ID": "instance_1",
+        "PROCESS_TYPE": "dummy",
+    }]
+
+    expect(data1).toEqual(expected1)
+
+    var data2 = await DB.readArtifactUsageEntries('truck/001', 1250, 1499)
+    var expected2 = []
+    for (var i = 0; i < 5; i++) {
+        expected2.push({
+            "ARTIFACT_NAME": "truck/001",
+            "ATTACHED_TIME": "1001",
+            "CASE_ID": `case_${i + 10}`,
+            "DETACHED_TIME": `${1250 + i}`,
+            "OUTCOME": "success",
+            "PROCESS_ID": "instance_1",
+            "PROCESS_TYPE": "dummy",
+        })
+    }
+
+    expect(data2).toEqual(expected2)
+})
+
+test('[writeArtifactUsageEntry][deleteArtifactUsageEntries] [WRITE AND DELETE]', async () => {
+    for (var i = 0; i < 10; i++) {
+        await DB.writeArtifactUsageEntry('truck/001', `case_${i}`, 1000 + 1, 1500 + i, 'dummy', 'instance_1', 'success')
+    }
+
+    for (var i = 0; i < 10; i++) {
+        await DB.deleteArtifactUsageEntries('truck/001', `case_${i}`)
+    }
+    var data1 = await DB.readArtifactUsageEntries('truck/001', 1500, 1500)
+    var expected1 = []
+
+    expect(data1).toEqual(expected1)
+})
+
+test('[writeNewProcessType][WRITE AND READ]', async () => {
+
+    await DB.writeNewProcessType('dummy','egsm','bpmn')
+    var pk = { name: 'PROCESS_TYPE_NAME', value: 'dummy' }
+    var data1 = await DYNAMO.readItem('PROCESS_TYPE', pk)
+    var expected1 = {
+        Item:{
+            PROCESS_TYPE_NAME: {S:'dummy'},
+            EGSM_MODEL:{S:'egsm'},
+            BPMN_MODEL:{S:'bpmn'}
+        }
+    }
+    expect(data1).toEqual(expected1)
+})
+
+//TODO
+
+/*test('[writeNewProcessInstance][WRITE AND READ]', async () => {
+
+})
+
+test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
+
+})
+
+test('[writeNewStakeholder][WRITE AND READ]', async () => {
+
+})*/
