@@ -20,21 +20,55 @@ async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders
     return result
 }
 
+async function getArtifactStakeholders(artifactType, artifactId) {
+    var keyexpression = 'ARTIFACT_TYPE = :a and ARTIFACT_ID = :b'
+    var expressionattributevalues = {
+        ':a': { S: artifactType },
+        ':b': { S: artifactId },
+    }
+    var projectionexpression = `STAKEHOLDERS`
+    const result = await DYNAMO.query('ARTIFACT_DEFINITION', keyexpression, expressionattributevalues, undefined, projectionexpression)
+    return result[0]['STAKEHOLDERS']['SS']
+}
+
+async function addNewFaultyRateWindow(artifactType, artifactId, window) {
+    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
+    var sk = { name: 'ARTIFACT_ID', value: artifactId }
+
+    await DYNAMO.initNestedList('ARTIFACT_DEFINITION', pk, sk, `FAULTY_RATES.w${window.toString()}`)
+    
+    var attributes = []
+    attributes.push({ name: `FAULTY_RATE_${window.toString()}`, type: 'N', value: '-1' })
+    return await DYNAMO.updateItem('ARTIFACT_DEFINITION', pk, sk, attributes)
+}
+
+async function addArtifactFaultyRateToWindow(artifactType, artifactId, window, timestamp, faultyrate, lastcaseid) {
+    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
+    var sk = { name: 'ARTIFACT_ID', value: artifactId }
+    var item = { type: 'L', value: [{ 'S': lastcaseid }, { 'N': timestamp.toString() }, { 'N': faultyrate.toString() }] }
+
+    const result = await DYNAMO.appendNestedListItem('ARTIFACT_DEFINITION', pk, sk, `FAULTY_RATES.w${window.toString()}`, [item])
+    var attributes = []
+    attributes.push({ name: `FAULTY_RATE_${window.toString()}`, type: 'N', value: `${faultyrate}` })
+    await DYNAMO.updateItem('ARTIFACT_DEFINITION', pk, sk, attributes)
+    return result
+}
+
 async function getArtifactFaultyRateValues(artifactType, artifactId, window) {
     var keyexpression = 'ARTIFACT_TYPE = :a and ARTIFACT_ID = :b'
     var expressionattributevalues = {
         ':a': { S: artifactType },
         ':b': { S: artifactId },
     }
-    var projectionexpression = `FAULTY_RATES.${window}`
+    var projectionexpression = `FAULTY_RATES.w${window.toString()}`
     const result = await DYNAMO.query('ARTIFACT_DEFINITION', keyexpression, expressionattributevalues, undefined, projectionexpression)
     var final = []
-    var list = result[0]['FAULTY_RATES']['M']['w60']['L']
+    var list = result[0]['FAULTY_RATES']['M'][`w${window.toString()}`]['L']
     for (var i in list) {
         final.push({
             case_id: list[i]['L'][0]['S'],
-            timestamp: list[i]['L'][1]['N'],
-            faulty_rate: list[i]['L'][2]['N'],
+            timestamp: Number(list[i]['L'][1]['N']),
+            faulty_rate: Number(list[i]['L'][2]['N']),
         })
     }
     return final
@@ -43,32 +77,9 @@ async function getArtifactFaultyRateValues(artifactType, artifactId, window) {
 async function getArtifactFaultyRateLatest(artifactType, artifactId, window) {
     var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
     var sk = { name: 'ARTIFACT_ID', value: artifactId }
-    const result = await DYNAMO.readItem('ARTIFACT_DEFINITION', pk, sk, `FAULTY_RATE_${window}`)
-    return result
-}
-
-async function addNewFaultyRateWindow(artifactType, artifactId, window) {
-    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
-    var sk = { name: 'ARTIFACT_ID', value: artifactId }
-
-    const result = await DYNAMO.initNestedList('ARTIFACT_DEFINITION', pk, sk, `FAULTY_RATES.${window}`).then(() => {
-        var attributes = []
-        attributes.push({ name: `FAULTY_RATE_${window}`, type: 'N', value: '-1' })
-        DYNAMO.updateItem('ARTIFACT_DEFINITION', pk, sk, attributes)
-    })
-}
-
-async function addArtifactFaultyRateToWindow(artifactType, artifactId, window, timestamp, faultyrate, lastcaseid) {
-    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
-    var sk = { name: 'ARTIFACT_ID', value: artifactId }
-    var item = { type: 'L', value: [{ 'S': lastcaseid }, { 'N': timestamp.toString() }, { 'N': faultyrate.toString() }] }
-
-    const result = DYNAMO.appendNestedListItem('ARTIFACT_DEFINITION', pk, sk, `FAULTY_RATES.${window}`, [item]).then(() => {
-        var attributes = []
-        attributes.push({ name: `FAULTY_RATE_${window}`, type: 'N', value: `${faultyrate}` })
-        DYNAMO.updateItem('ARTIFACT_DEFINITION', pk, sk, attributes)
-    })
-    return result
+    const result = await DYNAMO.readItem('ARTIFACT_DEFINITION', pk, sk,`FAULTY_RATE_${window}`)
+    var final = Number(result['Item'][`FAULTY_RATE_${window.toString()}`]['N'])
+    return final
 }
 
 //Time faulty rate-related functions
@@ -257,7 +268,7 @@ function writeNewStakeholder(stakeholderid, notificationTopic) {
 
 
 //STAGE EVENTS
-function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
+/*function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
 
     var pk = { name: 'PROCESS_NAME', value: processName }
     var sk = { name: 'EVENT_ID', value: eventid.toString() }
@@ -398,10 +409,11 @@ function removeProcessFromProcessGroup(groupname, processName) {
                     [{ name: 'PROCESSES', type: 'SS', value: processes }])
             }
         }).catch(err => { console.log('error:' + err) })
-}
+}*/
 
 module.exports = {
     writeNewArtifactDefinition: writeNewArtifactDefinition,
+    getArtifactStakeholders: getArtifactStakeholders,
     addNewFaultyRateWindow: addNewFaultyRateWindow,
     getArtifactFaultyRateLatest: getArtifactFaultyRateLatest,
     addArtifactFaultyRateToWindow: addArtifactFaultyRateToWindow,

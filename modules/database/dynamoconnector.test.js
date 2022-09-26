@@ -1,6 +1,3 @@
-//var controller = require('main');
-//var mqttconnector = require('../eventrouter/mqttconnector');
-
 var AWS = require('aws-sdk');
 var LOG = require('../auxiliary/LogManager')
 var AUX = require('../auxiliary/auxiliary')
@@ -621,6 +618,8 @@ test('[2 KEYS] [SINGLE ATTRIBUTE] [WRITE AND DELETE AND READ] [LIST ATTRIBUTE] [
     expect(data).toEqual(expected)
 })
 
+
+
 /*test('[2 KEYS] [MULTIPLE ATTRIBUTES] [WRITE AND DELETE AND READ] [NUMBER ATTRIBUTES] [WITH CONDITION] [SUCCESSFUL]', async () => {
 
     var promises = []
@@ -645,5 +644,37 @@ test('[2 KEYS] [SINGLE ATTRIBUTE] [WRITE AND DELETE AND READ] [LIST ATTRIBUTE] [
     }
     expect(data).toEqual(expected)
 })*/
+
+
+/*test('[2 KEYS] [QUERY TEST]] [WRITE AND QUERY] [SUCCESSFUL]', async () => {
+
+    var promises = []
+    for (var i = 0; i < 10; i++) {
+        var pk = { name: 'KEY_1', value: 'HASK_KEY_1' }
+        var sk = { name: 'KEY_2', value: `RANGE_KEY_${i}` }
+        var attributes = []
+        attributes.push({ name: 'ATTRIBUTE_1', type: 'L', value: [{ S: 'data_1' }, { N: `${i}` }] })
+        promises.push(DYNAMO.writeItem('TEST_TABLE_1', pk, sk, attributes))
+    }
+    await Promise.all(promises)
+
+    var keyexpression = 'KEY_1 = :a'
+    var expressionattributevalues = {
+        ':a': { S: 'HASK_KEY_1' },
+        ':b': { N: '5' },
+    }
+    var projectionexpression = `ATTRIBUTE_1`
+    var filterexpression = 'ATTRIBUTE_1 >= :b'
+    const data = await DYNAMO.query('ARTIFACT_DEFINITION', keyexpression, expressionattributevalues, filterexpression, projectionexpression)
+
+    var expected = {
+        Item: {
+            ATTRIBUTE_1: {}
+        }
+    }
+
+    expect(data).toEqual(expected)
+}
+)*/
 
 
