@@ -150,48 +150,106 @@ async function initArtifactTables() {
     await Promise.all(promises)
 }
 
+async function initTable(tablename, pk, sk) {
+    var params = {
+        AttributeDefinitions: [
+            {
+                AttributeName: pk,
+                AttributeType: 'S'
+            }
+        ],
+        KeySchema: [
+            {
+                AttributeName: pk,
+                KeyType: 'HASH'
+            }
+        ],
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+        },
+        TableName: tablename,
+        StreamSpecification: {
+            StreamEnabled: false
+        }
+    };
+    if (sk != undefined) {
+        params.AttributeDefinitions.push(
+            {
+                AttributeName: sk,
+                AttributeType: 'S'
+            })
+        params.KeySchema.push(
+            {
+                AttributeName: sk,
+                KeyType: 'RANGE'
+            })
+    }
+
+    // Call DynamoDB to create the table
+    return new Promise((resolve, reject) => {
+        DDB.createTable(params, function (err, data) {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(data)
+            }
+        });
+    })
+}
+
+async function initProcessTables() {
+    await initTable('PROCESS_TYPE', 'PROCESS_TYPE_NAME', undefined)
+    await initTable('PROCESS_INSTANCE', 'PROCESS_TYPE_NAME', 'INSTANCE_ID')
+    await initTable('PROCESS_GROUP_DEFINITION', 'NAME', undefined)
+    await initTable('STAKEHOLDERS', 'STAKEHOLDER_ID', undefined)
+    await AUX.sleep(100)
+}
+
 async function deleteArtifactTables() {
+    var TABLES = [
+        'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION'
+    ]
     var promises = []
 
-    var params = {
-        TableName: 'ARTIFACT_EVENT'
-    };
-    promises.push(new Promise((resolve, reject) => {
-        DDB.deleteTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
+    TABLES.forEach(element => {
+        var params = {
+            TableName: element
+        };
+        promises.push(new Promise((resolve, reject) => {
+            DDB.deleteTable(params, function (err, data) {
+                if (err) {
+                    reject(err)
+                } else {
+                    resolve(data)
+                }
+            });
+        }))
+    });
+    await Promise.all(promises)
 
-    params = {
-        TableName: 'ARTIFACT_USAGE'
-    };
-    promises.push(new Promise((resolve, reject) => {
-        DDB.deleteTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
+}
 
-    params = {
-        TableName: 'ARTIFACT_DEFINITION'
-    };
-    promises.push(new Promise((resolve, reject) => {
-        DDB.deleteTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
+async function deleteProcessTables() {
+    var TABLES = [
+        'PROCESS_TYPE', 'PROCESS_INSTANCE', 'PROCESS_GROUP_DEFINITION', 'STAKEHOLDERS'
+    ]
+    var promises = []
 
+    TABLES.forEach(element => {
+        var params = {
+            TableName: element
+        };
+        promises.push(new Promise((resolve, reject) => {
+            DDB.deleteTable(params, function (err, data) {
+                if (err) {
+                    reject(err)
+                } else {
+                    resolve(data)
+                }
+            });
+        }))
+    });
     await Promise.all(promises)
 }
 
@@ -199,10 +257,12 @@ async function deleteArtifactTables() {
 beforeEach(async () => {
     LOG.setLogLevel(5)
     await initArtifactTables();
+    await initProcessTables()
 });
 
 afterEach(async () => {
     await deleteArtifactTables()
+    await deleteProcessTables()
 })
 
 //TEST CASES BEGIN
@@ -217,7 +277,7 @@ test('[writeNewArtifactDefinition] [WRITE AND READ]', async () => {
         Item: {
             ARTIFACT_TYPE: { S: 'truck' },
             ARTIFACT_ID: { S: 'instance-1' },
-            ATTACHED_TO: { SS: ['ROOT'] },
+            //ATTACHED_TO: { SS: [] },
             FAULTY_RATES: { M: {} },
             TIMING_FAULTY_RATES: { M: {} },
             STAKEHOLDERS: { SS: ['Best Truck Company', 'Maintainer Company'] },
@@ -638,29 +698,149 @@ test('[writeArtifactUsageEntry][deleteArtifactUsageEntries] [WRITE AND DELETE]',
 
 test('[writeNewProcessType][WRITE AND READ]', async () => {
 
-    await DB.writeNewProcessType('dummy','egsm','bpmn')
+    await DB.writeNewProcessType('dummy', 'egsm', 'bpmn')
     var pk = { name: 'PROCESS_TYPE_NAME', value: 'dummy' }
     var data1 = await DYNAMO.readItem('PROCESS_TYPE', pk)
     var expected1 = {
-        Item:{
-            PROCESS_TYPE_NAME: {S:'dummy'},
-            EGSM_MODEL:{S:'egsm'},
-            BPMN_MODEL:{S:'bpmn'}
+        Item: {
+            PROCESS_TYPE_NAME: { S: 'dummy' },
+            EGSM_MODEL: { S: 'egsm' },
+            BPMN_MODEL: { S: 'bpmn' }
         }
     }
     expect(data1).toEqual(expected1)
 })
 
-//TODO
+test('[readProcessType][WRITE AND READ]', async () => {
 
-/*test('[writeNewProcessInstance][WRITE AND READ]', async () => {
+    await DB.writeNewProcessType('dummy', 'egsm1', 'bpmn1')
+    var data1 = await DB.readProcessType('dummy')
+    var expected1 = {
+        processtype: 'dummy',
+        egsmmodel: 'egsm1',
+        bpmnmodel: 'bpmn1'
+    }
+    expect(data1).toEqual(expected1)
 
+    var data2 = await DB.readProcessType('dummy2')
+    var expected2 = undefined
+    expect(data2).toEqual(expected2)
+})
+
+test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () => {
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000)
+    const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected1 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2']
+    }
+    expect(data1).toEqual(expected1)
+
+    //With empty arrays
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000)
+    const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
+    var expected2 = {
+        processtype: 'dummy2',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: [],
+        groups: []
+    }
+    expect(data2).toEqual(expected2)
+
+    //Read undefined process
+    const data3 = await DB.readProcessInstance('dummy22', 'instance-2')
+    var expected3 = undefined
+    expect(data3).toEqual(expected3)
 })
 
 test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000)
+    await DB.closeOngoingProcessInstance('dummy1', 'instance-1', 1550)
 
+    const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected1 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: 1550,
+        status: 'finished',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2']
+    }
+    expect(data1).toEqual(expected1)
+
+    //With empty arrays
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000)
+    await DB.closeOngoingProcessInstance('dummy2', 'instance-1', 2560)
+    const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
+    var expected2 = {
+        processtype: 'dummy2',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: 2560,
+        status: 'finished',
+        stakeholders: [],
+        groups: []
+    }
+    expect(data2).toEqual(expected2)
+
+    //Try to close undefined process
+    expect(() => { DB.closeOngoingProcessInstance('dummy22', 'instance-3', 2560) }).not.toThrow()
 })
 
-test('[writeNewStakeholder][WRITE AND READ]', async () => {
+test('[writeNewStakeholder][readStakeholder][WRITE AND READ]', async () => {
+    await DB.writeNewStakeholder('company1', 'mqtt::notification/company1')
+    const data1 = await DB.readStakeholder('company1')
+    var expected1 = {
+        id: 'company1', 
+        topic: 'mqtt::notification/company1'
+    }
+    expect(data1).toEqual(expected1)
 
-})*/
+    //Try to read undefined
+    const data2 = await DB.readStakeholder('company21')
+    var expected2 = undefined
+    expect(data2).toEqual(expected2)
+})
+
+test('[writeNewProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
+    //Define process group with non-empty process list and read back
+    await DB.writeNewProcessGroup('group-1', ['process-1', 'process-2'])
+    const data1 = await DB.readProcessGroup('group-1')
+    var expected1 = {
+        name: 'group-1',
+        processes: ['process-1', 'process-2']
+    }
+    expect(data1).toEqual(expected1)
+
+    //Define process group with empty process list and read back
+    await DB.writeNewProcessGroup('group-2', [])
+
+    const data2 = await DB.readProcessGroup('group-2')
+    var expected2 = {
+        name: 'group-2',
+        processes: []
+    }
+    expect(data2).toEqual(expected2)
+
+    //Try to read non-defined process group
+    const data3 = await DB.readProcessGroup('group-3')
+    var expected3 = undefined
+    expect(data3).toEqual(expected3)
+})
+
+//test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
+
+//}
+
+//writeNewProcessGroup
+//readProcessGroup
+//addProcessToProcessGroup

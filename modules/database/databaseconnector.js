@@ -1,6 +1,7 @@
 var DYNAMO = require('./dynamoconnector')
 
 var LOG = require('../auxiliary/LogManager');
+const { updateItem } = require('./dynamoconnector');
 
 module.id = 'DB-CONNECTOR'
 
@@ -13,7 +14,7 @@ async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders
     var sk = { name: 'ARTIFACT_ID', value: artifactId }
     var attributes = []
     attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
-    attributes.push({ name: 'ATTACHED_TO', type: 'SS', value: ['ROOT'] })
+    //attributes.push({ name: 'ATTACHED_TO', type: 'SS', value: ['ROOT'] })
     attributes.push({ name: 'FAULTY_RATES', type: 'M', value: {} }) // Empty map for faulty rates
     attributes.push({ name: 'TIMING_FAULTY_RATES', type: 'M', value: {} })
     const result = await DYNAMO.writeItem('ARTIFACT_DEFINITION', pk, sk, attributes)
@@ -189,7 +190,7 @@ function deleteArtifactUsageEntries(artifactname, caseid) {
 }
 
 //PROCESS_TYPE related operations
-function writeNewProcessType(proccesstype, egsm, bpmn,) {
+function writeNewProcessType(proccesstype, egsm, bpmn) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: proccesstype }
     var attributes = []
     attributes.push({ name: 'EGSM_MODEL', type: 'S', value: egsm })
@@ -197,45 +198,138 @@ function writeNewProcessType(proccesstype, egsm, bpmn,) {
     return DYNAMO.writeItem('PROCESS_TYPE', pk, undefined, attributes)
 }
 
+async function readProcessType(proccesstype) {
+    var pk = { name: 'PROCESS_TYPE_NAME', value: proccesstype }
+    const data = await DYNAMO.readItem('PROCESS_TYPE', pk, undefined)
+    var final = undefined
+    if (data['Item']) {
+        final =
+        {
+            processtype: data['Item']['PROCESS_TYPE_NAME']['S'],
+            egsmmodel: data['Item']['EGSM_MODEL']['S'],
+            bpmnmodel: data['Item']['BPMN_MODEL']['S']
+        }
+    }
+    return final
+}
+
 //PROCESS_INSTANCE-related operations
 
 //Function to create a new process instance
 //Process instance status is automatically set to 'ongoing'
 //Status can be changed and end time can be added by closeOngoingProcessInstance function 
-function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime) {
+async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
-    //Add placeholder to lists if they are empty or undefined
-    if (groups.length == 0) {
-        groups.push('ROOT')
-    }
-    if (stakeholders.length == 0) {
-        stakeholders.push('ROOT')
-    }
     var attributes = []
-    attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
-    attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
+    if (stakeholders && stakeholders.length > 0) {
+        attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
+    }
+    if (groups && groups.length > 0) {
+        attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
+    }
     attributes.push({ name: 'STARTING_TIME', type: 'N', value: startingtime.toString() })
     attributes.push({ name: 'ENDING_TIME', type: 'N', value: '-1' })
     attributes.push({ name: 'STATUS', type: 'S', value: 'ongoing' })
-    DYNAMO.writeItem('PROCESS_INSTANCE', pk, sk, attributes)
+    return DYNAMO.writeItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
-function closeOngoingProcessInstance(processtype, instanceid, endtime) {
+async function readProcessInstance(processtype, instanceid) {
+    var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
+    var sk = { name: 'INSTANCE_ID', value: instanceid }
+
+    const data = await DYNAMO.readItem('PROCESS_INSTANCE', pk, sk)
+    var final = undefined
+    if (data['Item']) {
+        final = {
+            processtype: data['Item']['PROCESS_TYPE_NAME']['S'],
+            instanceid: data['Item']['INSTANCE_ID']['S'],
+            startingtime: Number(data['Item']['STARTING_TIME']['N']),
+            endingtime: Number(data['Item']['ENDING_TIME']['N']),
+            status: data['Item']['STATUS']['S'],
+            stakeholders: data['Item']?.STAKEHOLDERS?.SS || [],
+            groups: data['Item']?.GROUPS?.SS || []
+        }
+    }
+    return final
+}
+
+async function closeOngoingProcessInstance(processtype, instanceid, endtime) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
     var attributes = []
     attributes.push({ name: 'ENDING_TIME', type: 'N', value: endtime.toString() })
     attributes.push({ name: 'STATUS', type: 'S', value: 'finished' })
-    DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
+    await DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
 //STAKEHOLDER operations
-function writeNewStakeholder(stakeholderid, notificationTopic) {
+async function writeNewStakeholder(stakeholderid, notificationTopic) {
     var pk = { name: 'STAKEHOLDER_ID', value: stakeholderid }
     var attributes = []
     attributes.push({ name: 'NOTIFICATION_TOPIC', type: 'S', value: notificationTopic })
-    DYNAMO.writeItem('STAKEHOLDERS', pk, undefined, attributes)
+    await DYNAMO.writeItem('STAKEHOLDERS', pk, undefined, attributes)
+}
+
+async function readStakeholder(stakeholderid) {
+    var pk = { name: 'STAKEHOLDER_ID', value: stakeholderid }
+    const data = await DYNAMO.readItem('STAKEHOLDERS', pk, undefined)
+    var final = undefined
+    if (data['Item']) {
+        final = {
+            id: data['Item']['STAKEHOLDER_ID']['S'],
+            topic: data['Item']['NOTIFICATION_TOPIC']['S'],
+        }
+    }
+    return final
+}
+
+//PROCESS GROUP operations
+async function writeNewProcessGroup(processgroupid, memberprocesses) {
+    var pk = { name: 'NAME', value: processgroupid }
+    var attributes = []
+    if (memberprocesses) {
+        var buffer = []
+        for (var i = 0; i < memberprocesses.length; i++) {
+            buffer.push({ S: memberprocesses[i] })
+        }
+        attributes.push({ name: 'PROCESSES', type: 'L', value: buffer })
+    }
+    return await DYNAMO.writeItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
+}
+
+async function readProcessGroup(processgroupid) {
+    var pk = { name: 'NAME', value: processgroupid }
+    const data = await DYNAMO.readItem('PROCESS_GROUP_DEFINITION', pk, undefined)
+    var final = undefined
+    if (data['Item']) {
+        final = {
+            name: data['Item']['NAME']['S'],
+            processes: [],
+        }
+        var processesBuff = data['Item']?.PROCESSES?.L
+        if(processesBuff){
+            processesBuff.forEach(element => {
+                final.processes.push(element['S'])
+            });
+        }
+    }
+    return final
+}
+
+async function addProcessToProcessGroup(processgroupid, newprocessid) {
+    const reading = await readProcessGroup(processgroupid)
+    if (reading == undefined) {
+        return writeNewProcessGroup(processgroupid, [newprocessid])
+    }
+
+    //If the group is already defined
+    var oldarray = reading.processes
+    var pk = { name: 'NAME', value: processgroupid }
+    var attributes = []
+    attributes.push({ name: 'PROCESSES', type: 'L', value: oldarray.push(newprocessid) })
+    const data = await DYNAMO.updateItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
+    return data
 }
 
 
@@ -428,7 +522,14 @@ module.exports = {
     readOlderArtifactEvents: readOlderArtifactEvents,
     deleteArtifactEvent: deleteArtifactEvent,
     writeNewProcessType: writeNewProcessType,
+    readProcessType: readProcessType,
     writeNewProcessInstance: writeNewProcessInstance,
+    readProcessInstance: readProcessInstance,
     closeOngoingProcessInstance: closeOngoingProcessInstance,
     writeNewStakeholder: writeNewStakeholder,
+    readStakeholder: readStakeholder,
+
+    writeNewProcessGroup: writeNewProcessGroup,
+    readProcessGroup: readProcessGroup,
+    addProcessToProcessGroup: addProcessToProcessGroup,
 }
