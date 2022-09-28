@@ -17,139 +17,6 @@ AWS.config.update({
 });
 var DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
 
-async function initArtifactTables() {
-    var promises = []
-    //ARTIFACT_EVENT
-    var params = {
-        AttributeDefinitions: [
-            {
-                AttributeName: 'ARTIFACT_NAME',
-                AttributeType: 'S'
-            },
-            {
-                AttributeName: 'EVENT_ID',
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: 'ARTIFACT_NAME',
-                KeyType: 'HASH'
-            },
-            {
-                AttributeName: 'EVENT_ID',
-                KeyType: 'RANGE'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: 'ARTIFACT_EVENT',
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-
-    // Call DynamoDB to create the table
-    promises.push(new Promise((resolve, reject) => {
-        DDB.createTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
-
-    //ARTIFACT_USAGE
-    var params1 = {
-        AttributeDefinitions: [
-            {
-                AttributeName: 'ARTIFACT_NAME',
-                AttributeType: 'S'
-            },
-            {
-                AttributeName: 'CASE_ID',
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: 'ARTIFACT_NAME',
-                KeyType: 'HASH'
-            },
-            {
-                AttributeName: 'CASE_ID',
-                KeyType: 'RANGE'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: 'ARTIFACT_USAGE',
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-
-    // Call DynamoDB to create the table
-    promises.push(new Promise((resolve, reject) => {
-        DDB.createTable(params1, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
-
-    //ARTIFACT_DEFINITION
-    var params2 = {
-        AttributeDefinitions: [
-            {
-                AttributeName: 'ARTIFACT_TYPE',
-                AttributeType: 'S'
-            },
-            {
-                AttributeName: 'ARTIFACT_ID',
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: 'ARTIFACT_TYPE',
-                KeyType: 'HASH'
-            },
-            {
-                AttributeName: 'ARTIFACT_ID',
-                KeyType: 'RANGE'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: 'ARTIFACT_DEFINITION',
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-
-    // Call DynamoDB to create the table
-    promises.push(new Promise((resolve, reject) => {
-        DDB.createTable(params2, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    }))
-    await Promise.all(promises)
-}
-
 async function initTable(tablename, pk, sk) {
     var params = {
         AttributeDefinitions: [
@@ -198,41 +65,23 @@ async function initTable(tablename, pk, sk) {
     })
 }
 
-async function initProcessTables() {
-    await initTable('PROCESS_TYPE', 'PROCESS_TYPE_NAME', undefined)
-    await initTable('PROCESS_INSTANCE', 'PROCESS_TYPE_NAME', 'INSTANCE_ID')
-    await initTable('PROCESS_GROUP_DEFINITION', 'NAME', undefined)
-    await initTable('STAKEHOLDERS', 'STAKEHOLDER_ID', undefined)
-    await AUX.sleep(100)
-}
-
-async function deleteArtifactTables() {
-    var TABLES = [
-        'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION'
-    ]
+async function initTables() {
     var promises = []
+    promises.push(initTable('PROCESS_TYPE', 'PROCESS_TYPE_NAME', undefined))
+    promises.push(initTable('PROCESS_INSTANCE', 'PROCESS_TYPE_NAME', 'INSTANCE_ID'))
+    promises.push(initTable('PROCESS_GROUP_DEFINITION', 'NAME', undefined))
+    promises.push(initTable('STAKEHOLDERS', 'STAKEHOLDER_ID', undefined))
 
-    TABLES.forEach(element => {
-        var params = {
-            TableName: element
-        };
-        promises.push(new Promise((resolve, reject) => {
-            DDB.deleteTable(params, function (err, data) {
-                if (err) {
-                    reject(err)
-                } else {
-                    resolve(data)
-                }
-            });
-        }))
-    });
+    promises.push(initTable('ARTIFACT_DEFINITION', 'ARTIFACT_TYPE', 'ARTIFACT_ID'))
+    promises.push(initTable('ARTIFACT_USAGE', 'ARTIFACT_NAME', 'CASE_ID'))
+    promises.push(initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID'))
     await Promise.all(promises)
-
 }
 
-async function deleteProcessTables() {
+async function deleteTables() {
     var TABLES = [
-        'PROCESS_TYPE', 'PROCESS_INSTANCE', 'PROCESS_GROUP_DEFINITION', 'STAKEHOLDERS'
+        'PROCESS_TYPE', 'PROCESS_INSTANCE', 'PROCESS_GROUP_DEFINITION', 'STAKEHOLDERS',
+        'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION'
     ]
     var promises = []
 
@@ -256,13 +105,11 @@ async function deleteProcessTables() {
 
 beforeEach(async () => {
     LOG.setLogLevel(5)
-    await initArtifactTables();
-    await initProcessTables()
+    await initTables()
 });
 
 afterEach(async () => {
-    await deleteArtifactTables()
-    await deleteProcessTables()
+    await deleteTables()
 })
 
 //TEST CASES BEGIN
