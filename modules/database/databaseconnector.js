@@ -21,6 +21,17 @@ async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders
     return result
 }
 
+async function isArtifactDefined(artifactType, artifactId) {
+    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
+    var sk = { name: 'ARTIFACT_ID', value: artifactId }
+    const data = await DYNAMO.readItem('ARTIFACT_DEFINITION', pk, sk)
+    if(data.Item?.ARTIFACT_TYPE){
+        return true
+    }
+    return false
+}
+
+
 async function getArtifactStakeholders(artifactType, artifactId) {
     var keyexpression = 'ARTIFACT_TYPE = :a and ARTIFACT_ID = :b'
     var expressionattributevalues = {
@@ -288,12 +299,12 @@ async function readStakeholder(stakeholderid) {
 async function writeNewProcessGroup(processgroupid, memberprocesses) {
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
-    if (memberprocesses) {
+    if (memberprocesses && memberprocesses.length > 0) {
         var buffer = []
         for (var i = 0; i < memberprocesses.length; i++) {
-            buffer.push({ S: memberprocesses[i] })
+            buffer.push(memberprocesses[i])
         }
-        attributes.push({ name: 'PROCESSES', type: 'L', value: buffer })
+        attributes.push({ name: 'PROCESSES', type: 'SS', value: buffer })
     }
     return await DYNAMO.writeItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
 }
@@ -307,10 +318,10 @@ async function readProcessGroup(processgroupid) {
             name: data['Item']['NAME']['S'],
             processes: [],
         }
-        var processesBuff = data['Item']?.PROCESSES?.L
-        if(processesBuff){
+        var processesBuff = data['Item']?.PROCESSES?.SS
+        if (processesBuff) {
             processesBuff.forEach(element => {
-                final.processes.push(element['S'])
+                final.processes.push(element)
             });
         }
     }
@@ -324,10 +335,11 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
     }
 
     //If the group is already defined
-    var oldarray = reading.processes
+    var oldarray = reading?.processes || []
+    oldarray.push(newprocessid)
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
-    attributes.push({ name: 'PROCESSES', type: 'L', value: oldarray.push(newprocessid) })
+    attributes.push({ name: 'PROCESSES', type: 'SS', value: oldarray })
     const data = await DYNAMO.updateItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
     return data
 }
@@ -506,6 +518,7 @@ function removeProcessFromProcessGroup(groupname, processName) {
 
 module.exports = {
     writeNewArtifactDefinition: writeNewArtifactDefinition,
+    isArtifactDefined:isArtifactDefined,
     getArtifactStakeholders: getArtifactStakeholders,
     addNewFaultyRateWindow: addNewFaultyRateWindow,
     getArtifactFaultyRateLatest: getArtifactFaultyRateLatest,

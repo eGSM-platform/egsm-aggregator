@@ -133,6 +133,16 @@ test('[writeNewArtifactDefinition] [WRITE AND READ]', async () => {
     expect(data).toEqual(expected)
 })
 
+test('[isArtifactDefined] [WRITE AND READ]', async () => {
+    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'])
+
+    const data = await DB.isArtifactDefined('truck', 'instance-1')
+    expect(data).toEqual(true)
+
+    const data2 = await DB.isArtifactDefined('truck', 'instance-2')
+    expect(data2).toEqual(false)
+})
+
 test('[getArtifactStakeholders] [WRITE AND READ]', async () => {
     //Assumed that the list is not empty (There is always at least one stakeholder)
     await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'])
@@ -684,10 +694,33 @@ test('[writeNewProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
     expect(data3).toEqual(expected3)
 })
 
-//test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
+test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
+    //Define process group with non-empty process list and read back
+    await DB.writeNewProcessGroup('group-1', ['process-1', 'process-2'])
+    await DB.addProcessToProcessGroup('group-1','process-3')
+    const data1 = await DB.readProcessGroup('group-1')
+    var expected1 = {
+        name: 'group-1',
+        processes: ['process-1', 'process-2','process-3']
+    }
+    expect(data1).toEqual(expected1)
 
-//}
+    //Define process group with empty process list and read back
+    await DB.writeNewProcessGroup('group-2', [])
+    await DB.addProcessToProcessGroup('group-2','process-1')
+    const data2 = await DB.readProcessGroup('group-2')
+    var expected2 = {
+        name: 'group-2',
+        processes: ['process-1']
+    }
+    expect(data2).toEqual(expected2)
 
-//writeNewProcessGroup
-//readProcessGroup
-//addProcessToProcessGroup
+    //Try to add process to non-defined process group
+    await DB.addProcessToProcessGroup('group-3','process-1')
+    const data3 = await DB.readProcessGroup('group-3')
+    var expected3 =  {
+        name: 'group-3',
+        processes: ['process-1']
+    }
+    expect(data3).toEqual(expected3)
+})
