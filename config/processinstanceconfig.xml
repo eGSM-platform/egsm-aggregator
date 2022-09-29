@@ -1,0 +1,11 @@
+<content>
+    <!-- Defining Process types -->
+    <processinstnace>
+        <type-name>DummyProcess</type-name>
+        <instance-id>instance-1</instance-id>
+        <stakeholder>Truck Company</stakeholder>
+        <stakeholder>Shipping Company</stakeholder>
+        <group>Process-Group-1</group>
+        <group>Process-Group-2</group>
+    </processinstnace>
+</content>

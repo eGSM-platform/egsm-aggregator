@@ -1,8 +1,9 @@
 var events = require('events');
 
-var LOG = require('./auxiliary/LogManager')
-var MQTT = require('./mqttconnector')
-var DB = require('./database/databaseconnector')
+var LOG = require('../auxiliary/LogManager')
+var MQTT = require('../communication/mqttconnector')
+var DYNAMO = require('../database/dynamoconnector')
+var DB = require('../database/databaseconnector')
 module.id = "EVENT_LOGGER"
 
 var eventEmitter = new events.EventEmitter();
@@ -112,56 +113,3 @@ module.exports = {
 
     },
 }
-
-//addEngine('DummyProcess/instance-1', 'localhost', 1883)
-//var dummyArtifactEvent = {
-//    artifact_name: 'truck/0001',
-//    timestamp: 10000001,
-//    artifact_state: 'attached',
-//    process_type: 'DummyProcess',
-//    process_id: 'instance-1'
-//}
-//dummyEventJson = JSON.stringify(dummyArtifactEvent)
-//onMessageReceived('localhost', 1883, 'DummyProcess/instance-1/artifact_log', dummyEventJson)
-//onMessageReceived('localhost', 1883, 'DummyProcess/instance-1/artifact_log', dummyEventJson)
-
-/*DB.readUnprocessedArtifactEvents('truck/0001').then((data) =>{
-    console.log(data)
-    for(i in data){
-        //DB.setArtifactEventToProcessed(i['ARTIFACT_NAME'],i['EVENT_ID'])
-    }
-    DB.setArtifactEventToProcessed('truck/0001','1')
-})*/
-//DB.readOlderArtifactEvents('truck/0001', 10000003).then((data) =>{
-//    console.log(data)
-//    for(var i in data){
-//        DB.deleteArtifactEvent(data[i].ARTIFACT_NAME.S,data[i].EVENT_ID.S)
-//    }
-//})
-//DB.writeNewProcessType('dummy1', 'model egsdm ad ', 'modek bmpn')
-var time = new Date().getTime(null)
-//DB.writeNewArtifactDefinition('truck','0003',['best truck company'])
-//DB.writeNewArtifactDefinition('truck','0004',['best truck company'])
-
-//DB.writeNewProcessInstance('dummy3', 'instance1', [],[],100)//['truck company', 'warehouse company'], ['Construction 1', 'EU transportation', 'Truck Maintenance'], time)
-
-//DB.closeOngoingProcessInstance('dummy2', 'instance1', 1001)
-//DB.writeNewStakeholder('truck company 1', 'truck_company_1')
-//DB.addNewFaultiRateWindow('truck','0004','w15')
-for (var i = 0; i < 10; i++) {
-    let l = i
-    DB.writeNewArtifactDefinition('truck', `${i}`, ['the truck company']).then(() => {
-        for (var k = 10; k < 100; k+=10) {
-            let k2 = k
-            DB.addNewFaultyRateWindow('truck', `${l}`, `w${k}`).then(() => {
-                //var date = Date().getTime()
-                DB.addArtifactFaultyRateToWindow('truck', `${l}`, `w${k2}`, 1000, 1.265 * k, `case_854545${l+k}`)
-            })
-        }
-    })
-}
-/*DB.getLatestArtifactFaultyRate('truck','0004','w15').then((data)=>{
-    console.log(data)
-})*/
-console.log('ok3')
-

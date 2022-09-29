@@ -3,52 +3,65 @@ var DDB = require('./database/databaseconnector')
 
 module.id = "CONTENT_MANAGER"
 
-async function defineProcessType(processtype, egsm, bpmn) {
-    var existingProcess = DDB.readProcessType(processtype)
+async function defineProcessType(processtype, egsm_info, egsm_model, bpmn_model) {
+    var existingProcess = await DDB.readProcessType(processtype)
     if (existingProcess) {
         LOG.logSystem('WARNING', `A process type is already defined with  ${processtype} name. Has not been modified!`, module.id)
-        return
+        return false
     }
-    await DDB.writeNewProcessType(processtype, egsm, bpmn).then((data, err) => {
+    await DDB.writeNewProcessType(processtype, egsm_info, egsm_model, bpmn_model).then((data, err) => {
         if (err) {
-            LOG.logSystem('WARNING', `Process type ${processtype} added`, module.id)
+            LOG.logSystem('WARNING', `Error while adding process type ${processtype}`, module.id)
+            return false
         }
         else {
-            LOG.logSystem('DEBUG', `Error while adding process type ${processtype}`, module.id)
+            LOG.logSystem('DEBUG', `Process type ${processtype} added`, module.id)
+            return true
         }
     })
 }
 
 async function defineAndStartProcessInstance(processtype, instanceid, stakeholders, groups) {
-    var read = await DDB.readProcessInstance(processtype,instanceid)
-    if(read != undefined){
+    var existingProcess = DDB.readProcessInstance(processtype, instanceid)
+    var existingProcessType = DDB.readProcessType(processtype)
+    var value = await Promise.all([existingProcess,existingProcessType])
+    //await Promise.all([existingProcess,existingProcessType])
+    if (value[0] != undefined) {
         LOG.logSystem('WARNING', `Process instance ${processtype}/${instanceid} is already exist`, module.id)
-        return
+        return false
     }
+    if (value[1] == undefined) {
+        LOG.logSystem('WARNING', `Process type ${processtype} is not defined yet, although ${instanceid} is an instance of that`, module.id)
+    }
+
     var startingTime = Math.floor(new Date().getTime() / 1000)
     await DDB.writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingTime).then((data, err) => {
         if (err) {
-            LOG.logSystem('WARNING', `Process ${processtype}/${instanceid} added`, module.id)
+            LOG.logSystem('WARNING', `Error while adding process ${processtype}/${instanceid}`, module.id)
+            return false
         }
         else {
-            LOG.logSystem('DEBUG', `Error while adding process ${processtype}/${instanceid}`, module.id)
+            LOG.logSystem('DEBUG', `Process ${processtype}/${instanceid} added`, module.id)
+            return true
         }
     })
 }
 
 async function closeProcessInstance(processtype, instanceid) {
-    var read = await DDB.readProcessInstance(processtype,instanceid)
-    if(read == undefined){
+    var read = await DDB.readProcessInstance(processtype, instanceid)
+    if (read == undefined) {
         LOG.logSystem('WARNING', `Process instance ${processtype}/${instanceid} is not existing, cannot be closed`, module.id)
-        return
+        return false
     }
     var closingTime = Math.floor(new Date().getTime() / 1000)
     await DDB.closeOngoingProcessInstance(processtype, instanceid, closingTime).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while closing process type ${processtype}/${instanceid}`, module.id)
+            return false
         }
         else {
             LOG.logSystem('DEBUG', `Process ${processtype}/${instanceid} closed`, module.id)
+            return true
         }
     })
 }
@@ -57,15 +70,17 @@ async function defineProcessGroup(groupid) {
     var reading = await DDB.readProcessGroup(groupid)
     if (reading) {
         LOG.logSystem('WARNING', `Process Group with name ${groupid} is already defined, has not been modified!`, module.id)
-        return
+        return false
     }
 
     DDB.writeNewProcessGroup(groupid).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Adding new Process Group with name ${groupid} was not successfull`, module.id)
+            return false
         }
         else {
             LOG.logSystem('DEBUG', `New Process Group with name ${groupid} created`, module.id)
+            return true
         }
     })
 }
@@ -74,42 +89,50 @@ async function addProcessToProcessGroup(groupid, processid) {
     DDB.addProcessToProcessGroup(groupid, processid).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while adding new Process with name ${processid} to group ${groupid}`, module.id)
+            return false
         } else {
             LOG.logSystem('DEBUG', `${processid} added to Process Group ${groupid} created`, module.id)
+            return true
         }
     })
 }
 
-function defineArtifact(artifactType, artifactId, stakeholders) {
-    if (DDB.isArtifactDefined(artifactType, artifactId)) {
+async function defineArtifact(artifactType, artifactId, stakeholders) {
+    var defined = await DDB.isArtifactDefined(artifactType, artifactId)
+
+    if (defined) {
         LOG.logSystem('WARNING', `An Artifact is already defined with name ${artifactType}/${artifactId}`, module.id)
-        return
+        return false
     }
     if (stakeholders == undefined) {
         stakeholders = []
     }
-    DDB.defineArtifact(artifactType, artifactId, stakeholders).then((date, err) => {
+    DDB.writeNewArtifactDefinition(artifactType, artifactId, stakeholders).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while defining new Artifact: ${artifactType}/${artifactId}`, module.id)
+            return false
         }
         else {
             LOG.logSystem('DEBUG', `New Artifact ${artifactType}/${artifactId} added successfully`, module.id)
+            return true
         }
     })
 }
 
-function defineStakeholder(stakeholdername, notificationtopic) {
-    const read = DDB.readStakeholder(stakeholdername)
-    if (read) {
+async function defineStakeholder(stakeholdername, notificationmethod, notificationtopic) {
+    const read = await DDB.readStakeholder(stakeholdername)
+    if (read != undefined) {
         LOG.logSystem('WARNING', `Stakeholder with name ${stakeholdername} is alredy exist`, module.id)
-        return
+        return false
     }
-    DDB.writeNewStakeholder(stakeholdername, notificationtopic).then((data,err)=>{
+    DDB.writeNewStakeholder(stakeholdername, notificationmethod, notificationtopic).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while defining new Stakeholder: ${stakeholdername}`, module.id)
+            return false
         }
         else {
             LOG.logSystem('DEBUG', `New Stakeholder ${stakeholdername} added successfully`, module.id)
+            return true
         }
     })
 }

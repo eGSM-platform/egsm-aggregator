@@ -555,13 +555,14 @@ test('[writeArtifactUsageEntry][deleteArtifactUsageEntries] [WRITE AND DELETE]',
 
 test('[writeNewProcessType][WRITE AND READ]', async () => {
 
-    await DB.writeNewProcessType('dummy', 'egsm', 'bpmn')
+    await DB.writeNewProcessType('dummy', 'egsm','egsm_model', 'bpmn')
     var pk = { name: 'PROCESS_TYPE_NAME', value: 'dummy' }
     var data1 = await DYNAMO.readItem('PROCESS_TYPE', pk)
     var expected1 = {
         Item: {
             PROCESS_TYPE_NAME: { S: 'dummy' },
-            EGSM_MODEL: { S: 'egsm' },
+            EGSM_INFO: { S: 'egsm' },
+            EGSM_MODEL: { S: 'egsm_model' },
             BPMN_MODEL: { S: 'bpmn' }
         }
     }
@@ -570,11 +571,12 @@ test('[writeNewProcessType][WRITE AND READ]', async () => {
 
 test('[readProcessType][WRITE AND READ]', async () => {
 
-    await DB.writeNewProcessType('dummy', 'egsm1', 'bpmn1')
+    await DB.writeNewProcessType('dummy', 'egsm1','egsm_model', 'bpmn1')
     var data1 = await DB.readProcessType('dummy')
     var expected1 = {
         processtype: 'dummy',
-        egsmmodel: 'egsm1',
+        egsminfo: 'egsm1',
+        egsmmodel: 'egsm_model',
         bpmnmodel: 'bpmn1'
     }
     expect(data1).toEqual(expected1)
@@ -654,7 +656,7 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
 })
 
 test('[writeNewStakeholder][readStakeholder][WRITE AND READ]', async () => {
-    await DB.writeNewStakeholder('company1', 'mqtt::notification/company1')
+    await DB.writeNewStakeholder('company1', 'mqtt', 'mqtt::notification/company1')
     const data1 = await DB.readStakeholder('company1')
     var expected1 = {
         id: 'company1', 

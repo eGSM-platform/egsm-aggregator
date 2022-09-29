@@ -25,7 +25,7 @@ async function isArtifactDefined(artifactType, artifactId) {
     var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
     var sk = { name: 'ARTIFACT_ID', value: artifactId }
     const data = await DYNAMO.readItem('ARTIFACT_DEFINITION', pk, sk)
-    if(data.Item?.ARTIFACT_TYPE){
+    if (data.Item?.ARTIFACT_TYPE) {
         return true
     }
     return false
@@ -201,10 +201,11 @@ function deleteArtifactUsageEntries(artifactname, caseid) {
 }
 
 //PROCESS_TYPE related operations
-function writeNewProcessType(proccesstype, egsm, bpmn) {
+function writeNewProcessType(proccesstype, egsm_info, egsm_model, bpmn) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: proccesstype }
     var attributes = []
-    attributes.push({ name: 'EGSM_MODEL', type: 'S', value: egsm })
+    attributes.push({ name: 'EGSM_INFO', type: 'S', value: egsm_info })
+    attributes.push({ name: 'EGSM_MODEL', type: 'S', value: egsm_model })
     attributes.push({ name: 'BPMN_MODEL', type: 'S', value: bpmn })
     return DYNAMO.writeItem('PROCESS_TYPE', pk, undefined, attributes)
 }
@@ -217,6 +218,7 @@ async function readProcessType(proccesstype) {
         final =
         {
             processtype: data['Item']['PROCESS_TYPE_NAME']['S'],
+            egsminfo: data['Item']['EGSM_INFO']['S'],
             egsmmodel: data['Item']['EGSM_MODEL']['S'],
             bpmnmodel: data['Item']['BPMN_MODEL']['S']
         }
@@ -275,7 +277,8 @@ async function closeOngoingProcessInstance(processtype, instanceid, endtime) {
 }
 
 //STAKEHOLDER operations
-async function writeNewStakeholder(stakeholderid, notificationTopic) {
+//TODO: apply notificationMethod if any other way will be used other than mqtt
+async function writeNewStakeholder(stakeholderid, notificationMethod, notificationTopic) {
     var pk = { name: 'STAKEHOLDER_ID', value: stakeholderid }
     var attributes = []
     attributes.push({ name: 'NOTIFICATION_TOPIC', type: 'S', value: notificationTopic })
@@ -518,7 +521,7 @@ function removeProcessFromProcessGroup(groupname, processName) {
 
 module.exports = {
     writeNewArtifactDefinition: writeNewArtifactDefinition,
-    isArtifactDefined:isArtifactDefined,
+    isArtifactDefined: isArtifactDefined,
     getArtifactStakeholders: getArtifactStakeholders,
     addNewFaultyRateWindow: addNewFaultyRateWindow,
     getArtifactFaultyRateLatest: getArtifactFaultyRateLatest,

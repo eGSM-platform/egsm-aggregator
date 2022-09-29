@@ -1,10 +1,12 @@
 <aggregation-profile>
-    <observation>
-        <engine-group>group-1</engine-group>
-        <member>engine-1</member>
-        <member>engine-2</member>
-        <member>engine-3</member>
-        <observation-task>
+    <monitoring>
+        <engine-group>
+            <group-id>group-1</group-id>
+            <member>engine-1</member>
+            <member>engine-2</member>
+            <member>engine-3</member>
+        </engine-group>
+        <monitoring-task>
             <!--If any stage event was observed in any member process -->
             <name>process-execution-deviation-detection</name>
             <!--The process owner(s) in the process group are notified about the error -->
@@ -14,9 +16,9 @@
             <!--The owners of the processes which are using the same artifact(s) as the faulty process are notified
             even if those processes are NOT IN THIS PROCES GROUP -->
             <notified>ATTACHED_ARTIFACT_USERS</notified>
-        </observation-task>
+        </monitoring-task>
 
-        <observation-task>
+        <monitoring-task>
             <!--Triggers if the failure rate of any of the attached artifacts from the specified type
             is above a predefined value -->
             <name>artifact-failure-rate-warning</name>
@@ -24,14 +26,14 @@
             <failure-percentage-limit>25</failure-percentage-limit>
             <!--The process owner(s) in the process group are notified about the error -->
             <notified>PROCESS_OWNERS</notified>
-        </observation-task>
-    </observation>
+        </monitoring-task>
+    </monitoring>
 
-    <observation>
+    <monitoring>
         <!--Specifying artifact-->
         <artifact-type>truck</artifact-type>
         <artifact-id>0001</artifact-id>
-        <artifact-observation>
+        <artifact-monitoring>
             <!--If the processes where a particular artifact participating are becoming faulty too ofter-->
             <name>artifact-failure-rate</name>
             <!--If more then failure-percentage-limit percentage of the processes where the artifact were used
@@ -39,9 +41,9 @@
             <failure-percentage-limit>40</failure-percentage-limit>
             <!--The failure rate calculation will based on the last sample-size number of artifact usage-->
             <sample-size>10</sample-size>
-        </artifact-observation>
+        </artifact-monitoring>
 
-        <artifact-observation>
+        <artifact-monitoring>
             <!--Periodically calculates the failure rate of the specified artifact and fires notification
             if the failure rate rises faster than a predefined limit-->
             <name>artifact-failure-rate-gradient</name>
@@ -49,7 +51,7 @@
             <failure-percentage-limit>5</failure-percentage-limit>
             <!--The failure rate will be calculated after window-size number of artifact uses-->
             <window-size>10</window-size>
-        </artifact-observation>
-        
-    </observation>
+        </artifact-monitoring>
+
+    </monitoring>
 </aggregation-profile>
