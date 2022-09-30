@@ -38,7 +38,7 @@ function onMessageReceived(hostname, port, topic, message) {
             //Notify core if needed
             var eventtype = checkStageForError(stagename, details)
             if (eventtype != 'correct') {
-                eventEmitter.emit('stage_log', engineid, eventtype, msgJson)
+                eventEmitter.emit(engineid + '/stage_log', msgJson)
             }
             break;*/
             case 'artifact_log':
@@ -56,7 +56,7 @@ function onMessageReceived(hostname, port, topic, message) {
 
                 //Notify core if about the event and it will evaluate based on historical data and
                 //the configured observation if any further thing is needed to do
-                eventEmitter.emit('artifact_log', engineid, msgJson)
+                eventEmitter.emit(engineid + '/artifact_log', msgJson)
                 break
 
             case 'adhoc':
@@ -64,7 +64,7 @@ function onMessageReceived(hostname, port, topic, message) {
                 //post-processing currently
 
                 //In case of an adhoc event the core needs to be notified
-                eventEmitter.emit('adhoc', engineid, eventtype, msgJson)
+                eventEmitter.emit(engineid + '/adhoc', msgJson)
                 break;
         }
     }
@@ -86,7 +86,22 @@ function addEngine(engineid, hostname, port) {
         MQTT.subscribeTopic(hostname, port, engineid + '/adhoc')
     }
     else {
-        LOG.logWorker('WARNING', `Engine [${engineid}] is alredy registered`, module.id)
+        LOG.logWorker('DEBUG', `Engine [${engineid}] is alredy registered`, module.id)
+    }
+}
+
+function removeEngine(engineid) {
+    LOG.logWorker('DEBUG', `removeEngine called: ${engineid}`, module.id)
+    if (ENGINES.has(engineid)) {
+        MQTT.unsubscribeTopic(hostname, port, engineid + '/stage_log')
+        MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
+        MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
+        ENGINES.delete(engineid)
+        STAGE_EVENT_ID.delete(engineid)
+        ARTIFACT_EVENT_ID.delete(engineid)
+    }
+    else {
+        LOG.logWorker('WARNING', `Engine [${engineid}] cannot be removed, it is not registered`, module.id)
     }
 }
 
@@ -94,22 +109,6 @@ MQTT.init(onMessageReceived)
 
 module.exports = {
     eventEmitter: eventEmitter,
-
     addEngine: addEngine,
-
-    removeEngine: function (engineid) {
-        LOG.logWorker('DEBUG', `removeEngine called: ${engineid}`, module.id)
-        if (ENGINES.has(engineid)) {
-            MQTT.unsubscribeTopic(hostname, port, engineid + '/stage_log')
-            MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
-            MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
-            ENGINES.delete(engineid)
-            STAGE_EVENT_ID.delete(engineid)
-            ARTIFACT_EVENT_ID.delete(engineid)
-        }
-        else {
-            LOG.logWorker('WARNING', `Engine [${engineid}] cannot be removed, it is not registered`, module.id)
-        }
-
-    },
+    removeEngine: removeEngine
 }

@@ -1,57 +1,54 @@
 <aggregation-profile>
-    <monitoring>
-        <engine-group>
-            <group-id>group-1</group-id>
-            <member>engine-1</member>
-            <member>engine-2</member>
-            <member>engine-3</member>
-        </engine-group>
-        <monitoring-task>
-            <!--If any stage event was observed in any member process -->
-            <type>process-execution-deviation-detection</type>
-            <!--The process owner(s) in the process group are notified about the error -->
-            <notified>PROCESS_OWNERS</notified>
-            <!--The owners of the artifact(s) which are attached to the faulty process are notified -->
-            <notified>ARTIFACT_OWNERS</notified>
-            <!--The owners of the processes which are using the same artifact(s) as the faulty process are notified
+    <process-monitoring>
+        <!-- Optional monitoring identifier (If not provided a random-generated ID will be applied)-->
+        <id>monitoring-1</id>
+        <!--Process group the monitoring should be applied to-->
+        <process-group>group-1</process-group>
+        <process-group>group-2</process-group>
+        <!--Additional member can be added by member keyword, or it can be used exclusively as well-->
+        <member>process-2</member>
+        <member>process-3</member>
+        <!--If any stage event deviation was observed in any member process -->
+        <type>process-execution-deviation-detection</type>
+        <!--The process owner(s) in the process group are notified about the error -->
+        <notified>PROCESS_OWNERS</notified>
+        <!--The owners of the artifact(s) which are attached to the faulty process are notified -->
+        <notified>ARTIFACT_OWNERS</notified>
+        <!--The owners of the processes which are using the same artifact(s) as the faulty process are notified
             even if those processes are NOT IN THIS PROCES GROUP -->
-            <notified>ATTACHED_ARTIFACT_USERS</notified>
-        </monitoring-task>
+        <notified>ATTACHED_ARTIFACT_USERS</notified>
+    </process-monitoring>
 
-        <monitoring-task>
-            <!--Triggers if the failure rate of any of the attached artifacts from the specified type
+    <process-monitoring>
+        <!--Triggers if the failure rate of any of the attached artifacts from the specified type
             is above a predefined value -->
-            <type>artifact-failure-rate-warning</type>
-            <artifact-type>truck</artifact-type>
-            <failure-percentage-limit>25</failure-percentage-limit>
-            <!--The process owner(s) in the process group are notified about the error -->
-            <notified>PROCESS_OWNERS</notified>
-        </monitoring-task>
-    </monitoring>
+        <type>artifact-failure-rate-warning</type>
+        <artifact-type>truck</artifact-type>
+        <failure-percentage-limit>25</failure-percentage-limit>
+        <!--The process owner(s) in the process group are notified about the error -->
+        <notified>PROCESS_OWNERS</notified>
+    </process-monitoring>
 
-    <monitoring>
+    <artifact-monitoring>
         <!--Specifying artifact-->
         <artifact-type>truck</artifact-type>
         <artifact-id>0001</artifact-id>
-        <artifact-monitoring>
-            <!--If the processes where a particular artifact participating are becoming faulty too ofter-->
-            <type>artifact-failure-rate</type>
-            <!--If more then failure-percentage-limit percentage of the processes where the artifact were used
+        <!--If the processes where a particular artifact participating are becoming faulty too ofter-->
+        <type>artifact-failure-rate</type>
+        <!--If more then failure-percentage-limit percentage of the processes where the artifact were used
         became faulty, the owner of the artifact is notified -->
-            <failure-percentage-limit>40</failure-percentage-limit>
-            <!--The failure rate calculation will based on the last sample-size number of artifact usage-->
-            <sample-size>10</sample-size>
-        </artifact-monitoring>
+        <failure-percentage-limit>40</failure-percentage-limit>
+        <!--The failure rate calculation will based on the last sample-size number of artifact usage-->
+        <sample-size>10</sample-size>
+    </artifact-monitoring>
 
-        <artifact-monitoring>
-            <!--Periodically calculates the failure rate of the specified artifact and fires notification
+    <artifact-monitoring>
+        <!--Periodically calculates the failure rate of the specified artifact and fires notification
             if the failure rate rises faster than a predefined limit-->
-            <type>artifact-failure-rate-gradient</type>
-            <!--The notification will be fired if the derivative of the failure rate is above this value -->
-            <failure-percentage-limit>5</failure-percentage-limit>
-            <!--The failure rate will be calculated after window-size number of artifact uses-->
-            <window-size>10</window-size>
-        </artifact-monitoring>
-
-    </monitoring>
+        <type>artifact-failure-rate-gradient</type>
+        <!--The notification will be fired if the derivative of the failure rate is above this value -->
+        <failure-percentage-limit>5</failure-percentage-limit>
+        <!--The failure rate will be calculated after window-size number of artifact uses-->
+        <window-size>10</window-size>
+    </artifact-monitoring>
 </aggregation-profile>

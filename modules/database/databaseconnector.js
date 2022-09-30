@@ -340,7 +340,9 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
 
     //If the group is already defined
     var oldarray = reading?.processes || []
-    oldarray.push(newprocessid)
+    if(!oldarray.includes(newprocessid)){
+        oldarray.push(newprocessid)
+    }
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
     attributes.push({ name: 'PROCESSES', type: 'SS', value: oldarray })

@@ -3,6 +3,8 @@ var fs = require('fs');
 
 var LOG = require('../auxiliary/LogManager')
 var CONTENTMANAGER = require('../contentmanager')
+var DDB = require('../database/databaseconnector')
+
 
 module.id = "AUTOCONFIG"
 
@@ -32,15 +34,13 @@ function parseNotificationMethod(method) {
         result['topic'] = method['notification-topic'][0]
     }
     else {
-        LOG.logSystem('FATAL', `${type} is not recognized as a notification method`)
+        LOG.logSystem('FATAL', `${type} is not recognized as a notification method`,module.id)
     }
     return result
 }
 
 //Creates the defined entities in the provided config file in the connected Database
-function applyContentConfig(configStr) {
-    var config = parseConfigFile(configStr)
-
+function applyContentConfig(config) {
     //Adding Stakeholders
     var stakeholders = config['content']?.['stakeholder'] || []
     stakeholders.forEach(element => {
@@ -50,7 +50,7 @@ function applyContentConfig(configStr) {
         for (var i = 0; i < notificationMethodsRaw.length; i++) {
             notificationMethods.push(parseNotificationMethod(notificationMethodsRaw[i]))
         }
-        if (!CONTENTMANAGER.defineStakeholder(name,JSON.stringify(notificationMethods))) {
+        if (!CONTENTMANAGER.defineStakeholder(name, JSON.stringify(notificationMethods))) {
             throw Error(`Could not define stakeholder ${element['name'][0]}`)
         }
     });
@@ -63,14 +63,13 @@ function applyContentConfig(configStr) {
             stakeholderConnections.push(element2)
         });
 
-        if (!CONTENTMANAGER.defineArtifact(element['type'][0], element['instance-id'][0], stakeholderConnections)) {
+        if (!CONTENTMANAGER.defineArtifact(element['type'][0], element['instance-id'][0], stakeholderConnections, element['host'][0], element['port'][0])) {
             throw Error(`Could not define artifact ${element['type'][0]}/${element['instance-id'][0]}`)
         }
     });
 }
 
-function applyProcessTypeConfig(configStr) {
-    var config = parseConfigFile(configStr)
+function applyProcessTypeConfig(config) {
     var processes = config['content']?.processtype || []
 
     processes.forEach(element => {
@@ -84,10 +83,9 @@ function applyProcessTypeConfig(configStr) {
     })
 }
 
-function applyProcessInstnaceConfig(configStr) {
-
-    var config = parseConfigFile(configStr)
-    var processes = config['content']?.processinstnace || []
+function applyProcessInstnaceConfig(config) {
+    //Adding process instances
+    var processes = config['content']?.['process-instance'] || []
     processes.forEach(element => {
         var type = element['type-name'][0]
         var instance = element['instance-id'][0]
@@ -106,20 +104,72 @@ function applyProcessInstnaceConfig(configStr) {
             throw Error(`Could not define process instance  ${type}/${instance}`)
         }
     })
+
+    //Adding Process groups
+    var groups = config['content']?.['process-group'] || []
+    groups.forEach(element => {
+        if (!CONTENTMANAGER.defineProcessGroup(element['name'][0])) {
+            throw Error(`Could not define process group ${element['name'][0]}`)
+        }
+        var processes = element?.['process-instance'] || []
+        processes.forEach(element2 => {
+            if (!CONTENTMANAGER.addProcessToProcessGroup(element['name'][0], element2)) {
+                throw Error(`Could not define process group ${element['name'][0]}`)
+            }
+        });
+    });
+}
+
+function applyMonitoringConfig(config) {
+    //Retrieving process monitoring definitions and iterating through them
+    var process_monitoring = config['aggregation-profile']?.['process-monitoring'] || []
+    process_monitoring.forEach(element => {
+        // Retrieving processes which are included in the monitoring
+        var groupNames = element?.['process-group'] || []
+        var memberProcesses = element?.['member'] || []
+        var monitoredProcesses = new Set()
+        groupNames.forEach(group => {
+            DDB.readProcessGroup(group).then((data, err) => {
+                if (err || data == undefined) {
+                    LOG.logSystem('ERROR', `Could not read ${group} from database`, module.id)
+                    return
+                }
+                data.processes.forEach(process => {
+                    if (!monitoredProcesses.has(process)) {
+                        monitoredProcesses.add(process)
+                    }
+                })
+            })
+        });
+        memberProcesses.forEach(process => {
+            if (!monitoredProcesses.has(process)) {
+                monitoredProcesses.add(process)
+            }
+        });
+
+        //Retrieving further information about monitoring
+        var type = config['aggregation-profile']['type'][0]
+        var notificationRules = config['aggregation-profile']['notified']
+    });
+
+    //Retrieving artifact monitoring definitions and iterating through them
+    var artifact_monitoring = config['aggregation-profile']?.['artifact-monitoring'] || []
+
 }
 
 function executeConfig(type, config) {
+    var configParsed = parseConfigFile(config)
     if (type == '--content_config') {
-        applyContentConfig(config)
+        applyContentConfig(configParsed)
     }
     else if (type == '--process_type_config') {
-        applyProcessTypeConfig(config)
+        applyProcessTypeConfig(configParsed)
     }
     else if (type == '--process_instance_config') {
-        applyProcessInstnaceConfig(config)
+        applyProcessInstnaceConfig(configParsed)
     }
     else if (type == '--monitoring_config') {
-
+        applyMonitoringConfig(configParsed)
     }
 }
 

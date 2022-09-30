@@ -1,11 +1,19 @@
 <content>
     <!-- Defining Process types -->
-    <processinstnace>
+    <process-instance>
         <type-name>DummyProcess</type-name>
         <instance-id>instance-1</instance-id>
         <stakeholder>Truck Company</stakeholder>
         <stakeholder>Shipping Company</stakeholder>
         <group>Process-Group-1</group>
         <group>Process-Group-2</group>
-    </processinstnace>
+    </process-instance>
+
+        <!-- Defining Process groups which can be used later to specify monitoring tasks
+    Note that not all member process instance need to be defined in this file, they may be
+    alredy added to the database-->
+    <process-group>
+        <name>group-2</name>
+        <process-instance>DummyProcess/1</process-instance>
+    </process-group>
 </content>
