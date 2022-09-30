@@ -1,15 +1,11 @@
 var DYNAMO = require('./dynamoconnector')
-
 var LOG = require('../auxiliary/LogManager');
-const { updateItem } = require('./dynamoconnector');
 
 module.id = 'DB-CONNECTOR'
 
-
 //ARTIFACT-related operations
-
 //Stakeholders should be a list of Strings
-async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders) {
+async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders, host, port) {
     var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
     var sk = { name: 'ARTIFACT_ID', value: artifactId }
     var attributes = []
@@ -17,9 +13,15 @@ async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders
     //attributes.push({ name: 'ATTACHED_TO', type: 'SS', value: ['ROOT'] })
     attributes.push({ name: 'FAULTY_RATES', type: 'M', value: {} }) // Empty map for faulty rates
     attributes.push({ name: 'TIMING_FAULTY_RATES', type: 'M', value: {} })
+    attributes.push({ name: 'HOST', type: 'S', value: host })
+    attributes.push({ name: 'PORT', type: 'N', value: port.toString() })
     const result = await DYNAMO.writeItem('ARTIFACT_DEFINITION', pk, sk, attributes)
     return result
 }
+
+//TODO
+//async function readArtifactDefinition(artifactType, artifactI){
+//}
 
 async function isArtifactDefined(artifactType, artifactId) {
     var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
@@ -277,11 +279,10 @@ async function closeOngoingProcessInstance(processtype, instanceid, endtime) {
 }
 
 //STAKEHOLDER operations
-//TODO: apply notificationMethod if any other way will be used other than mqtt
-async function writeNewStakeholder(stakeholderid, notificationMethod, notificationTopic) {
+async function writeNewStakeholder(stakeholderid, notificationdetails) {
     var pk = { name: 'STAKEHOLDER_ID', value: stakeholderid }
     var attributes = []
-    attributes.push({ name: 'NOTIFICATION_TOPIC', type: 'S', value: notificationTopic })
+    attributes.push({ name: 'NOTIFICATION_DETAILS', type: 'S', value: notificationdetails })
     await DYNAMO.writeItem('STAKEHOLDERS', pk, undefined, attributes)
 }
 
@@ -292,7 +293,7 @@ async function readStakeholder(stakeholderid) {
     if (data['Item']) {
         final = {
             id: data['Item']['STAKEHOLDER_ID']['S'],
-            topic: data['Item']['NOTIFICATION_TOPIC']['S'],
+            notificationdetails: data['Item']['NOTIFICATION_DETAILS']['S']
         }
     }
     return final

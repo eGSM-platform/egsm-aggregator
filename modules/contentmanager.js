@@ -97,7 +97,7 @@ async function addProcessToProcessGroup(groupid, processid) {
     })
 }
 
-async function defineArtifact(artifactType, artifactId, stakeholders) {
+async function defineArtifact(artifactType, artifactId, stakeholders, host, port) {
     var defined = await DDB.isArtifactDefined(artifactType, artifactId)
 
     if (defined) {
@@ -107,7 +107,7 @@ async function defineArtifact(artifactType, artifactId, stakeholders) {
     if (stakeholders == undefined) {
         stakeholders = []
     }
-    DDB.writeNewArtifactDefinition(artifactType, artifactId, stakeholders).then((data, err) => {
+    DDB.writeNewArtifactDefinition(artifactType, artifactId, stakeholders, host, port).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while defining new Artifact: ${artifactType}/${artifactId}`, module.id)
             return false
@@ -119,13 +119,13 @@ async function defineArtifact(artifactType, artifactId, stakeholders) {
     })
 }
 
-async function defineStakeholder(stakeholdername, notificationmethod, notificationtopic) {
+async function defineStakeholder(stakeholdername, notificationdetails) {
     const read = await DDB.readStakeholder(stakeholdername)
     if (read != undefined) {
         LOG.logSystem('WARNING', `Stakeholder with name ${stakeholdername} is alredy exist`, module.id)
         return false
     }
-    DDB.writeNewStakeholder(stakeholdername, notificationmethod, notificationtopic).then((data, err) => {
+    DDB.writeNewStakeholder(stakeholdername, notificationdetails).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while defining new Stakeholder: ${stakeholdername}`, module.id)
             return false

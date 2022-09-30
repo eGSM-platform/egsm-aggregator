@@ -5,21 +5,94 @@ var LOG = require('../auxiliary/LogManager');
 module.id = 'DDB'
 SUPPRESS_NO_CONFIG_WARNING = 1
 
-const accessKeyId = 'fakeMyKeyId';
-const secretAccessKey = 'fakeSecretAccessKey';
-// Create the DynamoDB service object
-// Set the region 
-AWS.config.update({
-    region: "local",
-    endpoint: "http://localhost:8000",
-    accessKeyId,
-    secretAccessKey,
-});
-var DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
+var DDB = undefined
 
+function initDynamo(accessKeyId, secretAccessKey, region, endpoint) {
+    AWS.config.update({
+        region: region,
+        endpoint: endpoint,
+        accessKeyId,
+        secretAccessKey,
+    });
+
+    DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
+}
+
+function verifyInit() {
+    if (DDB == undefined) {
+        LOG.logSystem('ERROR', 'Attempted to use Dynamo API before it was initialized')
+        throw Error('DYNAMO API not initialized')
+    }
+    return true
+}
+
+async function initTable(tablename, pk, sk) {
+    verifyInit()
+    var params = {
+        AttributeDefinitions: [
+            {
+                AttributeName: pk,
+                AttributeType: 'S'
+            }
+        ],
+        KeySchema: [
+            {
+                AttributeName: pk,
+                KeyType: 'HASH'
+            }
+        ],
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+        },
+        TableName: tablename,
+        StreamSpecification: {
+            StreamEnabled: false
+        }
+    };
+    if (sk != undefined) {
+        params.AttributeDefinitions.push(
+            {
+                AttributeName: sk,
+                AttributeType: 'S'
+            })
+        params.KeySchema.push(
+            {
+                AttributeName: sk,
+                KeyType: 'RANGE'
+            })
+    }
+
+    // Call DynamoDB to create the table
+    return new Promise((resolve, reject) => {
+        DDB.createTable(params, function (err, data) {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(data)
+            }
+        });
+    })
+}
+
+function deleteTable(tablename) {
+    var params = {
+        TableName: tablename
+    };
+    return new Promise((resolve, reject) => {
+        DDB.deleteTable(params, function (err, data) {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(data)
+            }
+        });
+    })
+}
 //Writes one item into a table, attributes arguments
 //should be a list containing {name, data, type} elements
 function writeItem(tablename, pk, sk, attr) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -61,6 +134,7 @@ function writeItem(tablename, pk, sk, attr) {
 }
 
 async function readItem(tablename, pk, sk, requestedfields) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -94,6 +168,7 @@ async function readItem(tablename, pk, sk, requestedfields) {
 }
 
 async function updateItem(tablename, pk, sk, attr) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -143,6 +218,7 @@ async function updateItem(tablename, pk, sk, attr) {
 }
 
 async function initNestedList(tablename, pk, sk, listattribute) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -173,6 +249,7 @@ async function initNestedList(tablename, pk, sk, listattribute) {
 }
 
 async function appendNestedListItem(tablename, pk, sk, listattribute, newelements, attr) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -209,6 +286,7 @@ async function appendNestedListItem(tablename, pk, sk, listattribute, newelement
 }
 
 function deleteItem(tablename, pk, sk, expressionattributevalues, conditionexpression) {
+    verifyInit()
     if (!sk) {
         var sk = { value: '' }
     }
@@ -241,7 +319,7 @@ function deleteItem(tablename, pk, sk, expressionattributevalues, conditionexpre
 }
 
 async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression, projectionexpression) {
-
+    verifyInit()
     let result, ExclusiveStartKey;
     var accumulated = []
     do {
@@ -262,6 +340,9 @@ async function query(tablename, keyconditionexpression, expressionattributevalue
     return accumulated;
 }
 module.exports = {
+    initDynamo: initDynamo,
+    initTable:initTable,
+    deleteTable:deleteTable,
     writeItem: writeItem,
     readItem: readItem,
     updateItem: updateItem,

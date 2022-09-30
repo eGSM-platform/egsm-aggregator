@@ -5,76 +5,17 @@ var AUX = require('../auxiliary/auxiliary')
 
 var DYNAMO = require('./dynamoconnector')
 var DB = require('./databaseconnector')
-const accessKeyId = 'fakeMyKeyId';
-const secretAccessKey = 'fakeSecretAccessKey';
-// Create the DynamoDB service object
-// Set the region 
-AWS.config.update({
-    region: "local",
-    endpoint: "http://localhost:8000",
-    accessKeyId,
-    secretAccessKey,
-});
-var DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
-
-async function initTable(tablename, pk, sk) {
-    var params = {
-        AttributeDefinitions: [
-            {
-                AttributeName: pk,
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: pk,
-                KeyType: 'HASH'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: tablename,
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-    if (sk != undefined) {
-        params.AttributeDefinitions.push(
-            {
-                AttributeName: sk,
-                AttributeType: 'S'
-            })
-        params.KeySchema.push(
-            {
-                AttributeName: sk,
-                KeyType: 'RANGE'
-            })
-    }
-
-    // Call DynamoDB to create the table
-    return new Promise((resolve, reject) => {
-        DDB.createTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    })
-}
 
 async function initTables() {
     var promises = []
-    promises.push(initTable('PROCESS_TYPE', 'PROCESS_TYPE_NAME', undefined))
-    promises.push(initTable('PROCESS_INSTANCE', 'PROCESS_TYPE_NAME', 'INSTANCE_ID'))
-    promises.push(initTable('PROCESS_GROUP_DEFINITION', 'NAME', undefined))
-    promises.push(initTable('STAKEHOLDERS', 'STAKEHOLDER_ID', undefined))
+    promises.push(DYNAMO.initTable('PROCESS_TYPE', 'PROCESS_TYPE_NAME', undefined))
+    promises.push(DYNAMO.initTable('PROCESS_INSTANCE', 'PROCESS_TYPE_NAME', 'INSTANCE_ID'))
+    promises.push(DYNAMO.initTable('PROCESS_GROUP_DEFINITION', 'NAME', undefined))
+    promises.push(DYNAMO.initTable('STAKEHOLDERS', 'STAKEHOLDER_ID', undefined))
 
-    promises.push(initTable('ARTIFACT_DEFINITION', 'ARTIFACT_TYPE', 'ARTIFACT_ID'))
-    promises.push(initTable('ARTIFACT_USAGE', 'ARTIFACT_NAME', 'CASE_ID'))
-    promises.push(initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID'))
+    promises.push(DYNAMO.initTable('ARTIFACT_DEFINITION', 'ARTIFACT_TYPE', 'ARTIFACT_ID'))
+    promises.push(DYNAMO.initTable('ARTIFACT_USAGE', 'ARTIFACT_NAME', 'CASE_ID'))
+    promises.push(DYNAMO.initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID'))
     await Promise.all(promises)
 }
 
@@ -84,24 +25,15 @@ async function deleteTables() {
         'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION'
     ]
     var promises = []
-
     TABLES.forEach(element => {
-        var params = {
-            TableName: element
-        };
-        promises.push(new Promise((resolve, reject) => {
-            DDB.deleteTable(params, function (err, data) {
-                if (err) {
-                    reject(err)
-                } else {
-                    resolve(data)
-                }
-            });
-        }))
+        promises.push(DYNAMO.deleteTable(element))
     });
     await Promise.all(promises)
 }
 
+beforeAll(() => {
+    DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:9000')
+});
 
 beforeEach(async () => {
     LOG.setLogLevel(5)
@@ -115,7 +47,7 @@ afterEach(async () => {
 //TEST CASES BEGIN
 
 test('[writeNewArtifactDefinition] [WRITE AND READ]', async () => {
-    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1883)
 
     var pk = { name: 'ARTIFACT_TYPE', value: 'truck' }
     var sk = { name: 'ARTIFACT_ID', value: 'instance-1' }
@@ -128,13 +60,15 @@ test('[writeNewArtifactDefinition] [WRITE AND READ]', async () => {
             FAULTY_RATES: { M: {} },
             TIMING_FAULTY_RATES: { M: {} },
             STAKEHOLDERS: { SS: ['Best Truck Company', 'Maintainer Company'] },
+            HOST: { S: 'localhost' },
+            PORT: { N: '1883' }
         }
     }
     expect(data).toEqual(expected)
 })
 
 test('[isArtifactDefined] [WRITE AND READ]', async () => {
-    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'], '192.168.0.1', 1883)
 
     const data = await DB.isArtifactDefined('truck', 'instance-1')
     expect(data).toEqual(true)
@@ -145,7 +79,7 @@ test('[isArtifactDefined] [WRITE AND READ]', async () => {
 
 test('[getArtifactStakeholders] [WRITE AND READ]', async () => {
     //Assumed that the list is not empty (There is always at least one stakeholder)
-    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-1', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1888)
 
     const data = await DB.getArtifactStakeholders('truck', 'instance-1')
     var expected = ["Best Truck Company", "Maintainer Company"]
@@ -154,7 +88,7 @@ test('[getArtifactStakeholders] [WRITE AND READ]', async () => {
 
 test('[addNewFaultyRateWindow] [WRITE AND READ]', async () => {
     //Adding a new Artifact
-    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1883)
 
     //Defining a new Faulty Rate Window
     await DB.addNewFaultyRateWindow('truck', 'instance-2', 10)
@@ -189,7 +123,7 @@ test('[addNewFaultyRateWindow] [WRITE AND READ]', async () => {
 
 test('[addArtifactFaultyRateToWindow] [WRITE AND READ]', async () => {
     //Adding a new Artifact
-    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1883)
 
     //Defining a new Faulty Rate Window
     await DB.addNewFaultyRateWindow('truck', 'instance-2', 10)
@@ -293,7 +227,7 @@ test('[addArtifactFaultyRateToWindow] [WRITE AND READ]', async () => {
 
 test('[getArtifactFaultyRateValues] [WRITE AND READ]', async () => {
     //Adding a new Artifact
-    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-2', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1883)
 
     //Defining a new Faulty Rate Window
     await DB.addNewFaultyRateWindow('truck', 'instance-2', 10)
@@ -319,7 +253,7 @@ test('[getArtifactFaultyRateValues] [WRITE AND READ]', async () => {
 
 test('[getArtifactFaultyRateLatest] [WRITE AND READ]', async () => {
     //Adding a new Artifact
-    await DB.writeNewArtifactDefinition('truck', 'instance-3', ['Best Truck Company', 'Maintainer Company'])
+    await DB.writeNewArtifactDefinition('truck', 'instance-3', ['Best Truck Company', 'Maintainer Company'], 'localhost', 1883)
 
     //Defining a new Faulty Rate Window
     await DB.addNewFaultyRateWindow('truck', 'instance-3', 10)
@@ -555,7 +489,7 @@ test('[writeArtifactUsageEntry][deleteArtifactUsageEntries] [WRITE AND DELETE]',
 
 test('[writeNewProcessType][WRITE AND READ]', async () => {
 
-    await DB.writeNewProcessType('dummy', 'egsm','egsm_model', 'bpmn')
+    await DB.writeNewProcessType('dummy', 'egsm', 'egsm_model', 'bpmn')
     var pk = { name: 'PROCESS_TYPE_NAME', value: 'dummy' }
     var data1 = await DYNAMO.readItem('PROCESS_TYPE', pk)
     var expected1 = {
@@ -571,7 +505,7 @@ test('[writeNewProcessType][WRITE AND READ]', async () => {
 
 test('[readProcessType][WRITE AND READ]', async () => {
 
-    await DB.writeNewProcessType('dummy', 'egsm1','egsm_model', 'bpmn1')
+    await DB.writeNewProcessType('dummy', 'egsm1', 'egsm_model', 'bpmn1')
     var data1 = await DB.readProcessType('dummy')
     var expected1 = {
         processtype: 'dummy',
@@ -656,11 +590,11 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
 })
 
 test('[writeNewStakeholder][readStakeholder][WRITE AND READ]', async () => {
-    await DB.writeNewStakeholder('company1', 'mqtt', 'mqtt::notification/company1')
+    await DB.writeNewStakeholder('company1', 'mqtt')
     const data1 = await DB.readStakeholder('company1')
     var expected1 = {
-        id: 'company1', 
-        topic: 'mqtt::notification/company1'
+        id: 'company1',
+        notificationdetails: 'mqtt'
     }
     expect(data1).toEqual(expected1)
 
@@ -699,17 +633,17 @@ test('[writeNewProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
 test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE AND READ]', async () => {
     //Define process group with non-empty process list and read back
     await DB.writeNewProcessGroup('group-1', ['process-1', 'process-2'])
-    await DB.addProcessToProcessGroup('group-1','process-3')
+    await DB.addProcessToProcessGroup('group-1', 'process-3')
     const data1 = await DB.readProcessGroup('group-1')
     var expected1 = {
         name: 'group-1',
-        processes: ['process-1', 'process-2','process-3']
+        processes: ['process-1', 'process-2', 'process-3']
     }
     expect(data1).toEqual(expected1)
 
     //Define process group with empty process list and read back
     await DB.writeNewProcessGroup('group-2', [])
-    await DB.addProcessToProcessGroup('group-2','process-1')
+    await DB.addProcessToProcessGroup('group-2', 'process-1')
     const data2 = await DB.readProcessGroup('group-2')
     var expected2 = {
         name: 'group-2',
@@ -718,9 +652,9 @@ test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE A
     expect(data2).toEqual(expected2)
 
     //Try to add process to non-defined process group
-    await DB.addProcessToProcessGroup('group-3','process-1')
+    await DB.addProcessToProcessGroup('group-3', 'process-1')
     const data3 = await DB.readProcessGroup('group-3')
-    var expected3 =  {
+    var expected3 = {
         name: 'group-3',
         processes: ['process-1']
     }

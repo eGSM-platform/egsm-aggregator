@@ -22,6 +22,21 @@ function parseConfigFile(config) {
     return final
 }
 
+function parseNotificationMethod(method) {
+    var result = {}
+    var type = method['type'][0]
+    if (type == 'mqtt') {
+        result['type'] = type
+        result['host'] = method['host'][0]
+        result['port'] = method['port'][0]
+        result['topic'] = method['notification-topic'][0]
+    }
+    else {
+        LOG.logSystem('FATAL', `${type} is not recognized as a notification method`)
+    }
+    return result
+}
+
 //Creates the defined entities in the provided config file in the connected Database
 function applyContentConfig(configStr) {
     var config = parseConfigFile(configStr)
@@ -29,7 +44,13 @@ function applyContentConfig(configStr) {
     //Adding Stakeholders
     var stakeholders = config['content']?.['stakeholder'] || []
     stakeholders.forEach(element => {
-        if (!CONTENTMANAGER.defineStakeholder(element['name'][0], element['notification-method'][0], element['notification-topic'][0])) {
+        var name = element['name'][0]
+        var notificationMethodsRaw = element['notification-method']
+        var notificationMethods = []
+        for (var i = 0; i < notificationMethodsRaw.length; i++) {
+            notificationMethods.push(parseNotificationMethod(notificationMethodsRaw[i]))
+        }
+        if (!CONTENTMANAGER.defineStakeholder(name,JSON.stringify(notificationMethods))) {
             throw Error(`Could not define stakeholder ${element['name'][0]}`)
         }
     });
@@ -72,7 +93,7 @@ function applyProcessInstnaceConfig(configStr) {
         var instance = element['instance-id'][0]
         var stakeholdersRaw = element?.['stakeholders'] || []
         var stakeholders = []
-        
+
         stakeholdersRaw.forEach(element => {
             stakeholders.push(element)
         })

@@ -2,18 +2,32 @@
     <!-- Defining Stakeholder names, their notification methods and the details of the communication channel -->
     <stakeholder>
         <name>Truck Company</name>
-        <notification-method>mqtt</notification-method>
-        <notification-topic>notification/truck_company</notification-topic>
+
+        <notification-method>
+            <type>mqtt</type>
+            <host>localhost</host>
+            <port>1883</port>
+            <notification-topic>notification/truck_company</notification-topic>
+        </notification-method>
+
     </stakeholder>
     <stakeholder>
         <name>Shipping Company</name>
-        <notification-method>mqtt</notification-method>
-        <notification-topic>notification/shipping_company</notification-topic>
+        <notification-method>
+            <type>mqtt</type>
+            <host>localhost</host>
+            <port>1883</port>
+            <notification-topic>notification/shipping_company</notification-topic>
+        </notification-method>
     </stakeholder>
     <stakeholder>
         <name>Container Company</name>
-        <notification-method>mqtt</notification-method>
-        <notification-topic>notification/container_company</notification-topic>
+        <notification-method>
+            <type>mqtt</type>
+            <host>localhost</host>
+            <port>1883</port>
+            <notification-topic>notification/container_company</notification-topic>
+        </notification-method>
     </stakeholder>
 
     <!-- Defining Artifacts. Providing their type, instance ID and the name of the responsible owner/stakeholder -->
@@ -21,20 +35,28 @@
         <type>Truck</type>
         <instance-id>1</instance-id>
         <stakeholder>Truck Company</stakeholder>
+        <host>localhost</host>
+        <port>1883</port>
     </artifact>
     <artifact>
         <type>Truck</type>
         <instance-id>2</instance-id>
         <stakeholder>Truck Company</stakeholder>
+        <host>localhost</host>
+        <port>1883</port>
     </artifact>
     <artifact>
         <type>Truck</type>
         <instance-id>3</instance-id>
         <stakeholder>Truck Company</stakeholder>
+        <host>localhost</host>
+        <port>1883</port>
     </artifact>
     <artifact>
         <type>Ship</type>
         <instance-id>1</instance-id>
         <stakeholder>Shipping Company</stakeholder>
+        <host>localhost</host>
+        <port>1883</port>
     </artifact>
 </content>

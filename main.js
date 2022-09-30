@@ -1,10 +1,13 @@
 
 var fs = require('fs');
 
+var DYNAMO = require('./modules/database/dynamoconnector')
 var LOG = require('./modules/auxiliary/LogManager')
 var CONFIG = require('./modules/config/autoconfig')
 
 module.id = "MAIN"
+
+DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:8000')
 
 const cmdArgs = process.argv.slice(2);
 //Check if there is any command line parameter to evaluate

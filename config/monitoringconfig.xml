@@ -8,7 +8,7 @@
         </engine-group>
         <monitoring-task>
             <!--If any stage event was observed in any member process -->
-            <name>process-execution-deviation-detection</name>
+            <type>process-execution-deviation-detection</type>
             <!--The process owner(s) in the process group are notified about the error -->
             <notified>PROCESS_OWNERS</notified>
             <!--The owners of the artifact(s) which are attached to the faulty process are notified -->
@@ -21,7 +21,7 @@
         <monitoring-task>
             <!--Triggers if the failure rate of any of the attached artifacts from the specified type
             is above a predefined value -->
-            <name>artifact-failure-rate-warning</name>
+            <type>artifact-failure-rate-warning</type>
             <artifact-type>truck</artifact-type>
             <failure-percentage-limit>25</failure-percentage-limit>
             <!--The process owner(s) in the process group are notified about the error -->
@@ -35,7 +35,7 @@
         <artifact-id>0001</artifact-id>
         <artifact-monitoring>
             <!--If the processes where a particular artifact participating are becoming faulty too ofter-->
-            <name>artifact-failure-rate</name>
+            <type>artifact-failure-rate</type>
             <!--If more then failure-percentage-limit percentage of the processes where the artifact were used
         became faulty, the owner of the artifact is notified -->
             <failure-percentage-limit>40</failure-percentage-limit>
@@ -46,7 +46,7 @@
         <artifact-monitoring>
             <!--Periodically calculates the failure rate of the specified artifact and fires notification
             if the failure rate rises faster than a predefined limit-->
-            <name>artifact-failure-rate-gradient</name>
+            <type>artifact-failure-rate-gradient</type>
             <!--The notification will be fired if the derivative of the failure rate is above this value -->
             <failure-percentage-limit>5</failure-percentage-limit>
             <!--The failure rate will be calculated after window-size number of artifact uses-->

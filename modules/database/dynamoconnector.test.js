@@ -4,125 +4,24 @@ var AUX = require('../auxiliary/auxiliary')
 //LOG.setLogLevel(5)
 
 var DYNAMO = require('./dynamoconnector')
-const accessKeyId = 'fakeMyKeyId';
-const secretAccessKey = 'fakeSecretAccessKey';
-// Create the DynamoDB service object
-// Set the region 
-AWS.config.update({
-    region: "local",
-    endpoint: "http://localhost:8000",
-    accessKeyId,
-    secretAccessKey,
+
+beforeAll(() => {
+    DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:9000')
 });
-var DDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
-
-async function initCompositeKeyTable() {
-    var params = {
-        AttributeDefinitions: [
-            {
-                AttributeName: 'KEY_1',
-                AttributeType: 'S'
-            },
-            {
-                AttributeName: 'KEY_2',
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: 'KEY_1',
-                KeyType: 'HASH'
-            },
-            {
-                AttributeName: 'KEY_2',
-                KeyType: 'RANGE'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: 'TEST_TABLE_1',
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-
-    // Call DynamoDB to create the table
-    return new Promise((resolve, reject) => {
-        DDB.createTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    })
-}
-
-async function initSingleKeyTable() {
-    var params = {
-        AttributeDefinitions: [
-            {
-                AttributeName: 'KEY_1',
-                AttributeType: 'S'
-            }
-        ],
-        KeySchema: [
-            {
-                AttributeName: 'KEY_1',
-                KeyType: 'HASH'
-            }
-        ],
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        },
-        TableName: 'TEST_TABLE_2',
-        StreamSpecification: {
-            StreamEnabled: false
-        }
-    };
-
-    // Call DynamoDB to create the table
-    return new Promise((resolve, reject) => {
-        DDB.createTable(params, function (err, data) {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(data)
-            }
-        });
-    })
-}
-
-async function deleteCompositeKeyTable() {
-    //await AUX.sleep(100)
-    var params = {
-        TableName: 'TEST_TABLE_1'
-    };
-    await DDB.deleteTable(params, function (err, data) { });
-
-
-}
-
-async function deleteSingleKeyTable() {
-    var params = {
-        TableName: 'TEST_TABLE_2'
-    };
-    await DDB.deleteTable(params, function (err, data) { });
-
-}
 
 beforeEach(async () => {
     LOG.setLogLevel(5)
-    await initCompositeKeyTable();
-    await initSingleKeyTable()
+    var promises = []
+    promises.push(DYNAMO.initTable('TEST_TABLE_1', 'KEY_1', 'KEY_2'))
+    promises.push(DYNAMO.initTable('TEST_TABLE_2', 'KEY_1', undefined))
+    await Promise.all(promises)
 });
 
 afterEach(async () => {
-    await deleteCompositeKeyTable()
-    await deleteSingleKeyTable()
+    var promises = []
+    promises.push(DYNAMO.deleteTable('TEST_TABLE_1'))
+    promises.push(DYNAMO.deleteTable('TEST_TABLE_2'))
+    await Promise.all(promises)
 })
 
 //TEST CASES BEGIN

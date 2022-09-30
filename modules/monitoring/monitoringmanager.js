@@ -5,6 +5,15 @@ module.id = "MONITORING_MANAGER"
 
 var MONITORING_ACTIVITIES = Map();
 
+function Monitoring(id, type, monitored, notified) {
+    var monitoringID = id
+    var monitoringType = type
+    var monitoredGroup = monitored
+    var notifiedEntities = notified
+
+
+}
+
 
 
 
@@ -12,10 +21,10 @@ var MONITORING_ACTIVITIES = Map();
 
 module.exports = {
     //Creates and starts a new monitoring activity based on the provided config file 
-    startMonitoringActivity:startMonitoringActivity,
+    startMonitoringActivity: startMonitoringActivity,
     //Stops a selected monitoring activity
-    stopMonitoringActivity:stopMonitoringActivity,
+    stopMonitoringActivity: stopMonitoringActivity,
     //Returns a list of existing monitoring activity ID-s
-    getMonitoringActivities:getMonitoringActivities
+    getMonitoringActivities: getMonitoringActivities
 
 }
