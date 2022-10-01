@@ -11,10 +11,7 @@ var MONITORING_ACTIVITIES = new Map();
 
 function evaluateStageEvent(eventDetails) {
     var errors = []
-    //if(eventDetailObj.status == 'unopened'){
-    //    errors.push('unopened')
-    //}
-    if (eventDetails.outcome == 'faulty') {
+    if (eventDetails.status == 'faulty') {
         errors.push(eventDetails.outcome)
     }
     if (eventDetails.compliance != 'onTime') {
@@ -88,23 +85,23 @@ function Monitoring(type, monitored, notificationRules) {
     var notificationRules = notificationRules
 
 
-    var eventHandler = function (engineid, eventtype, msgJson) {
-        var eventDetails = JSON.parse(msgJson)
+    var eventHandler = function (engineid, eventtype, messageObj) {
+        LOG.logSystem('DEBUG',`New event from ${engineid}, type: ${eventtype}`,module.id)
         switch (monitoringType) {
             case 'process-execution-deviation-detection':
-                if (eventtype == 'stage_log') {
-                    var errors = evaluateStageEvent(eventDetails)
+                if (eventtype == 'stage') {
+                    var errors = evaluateStageEvent(messageObj)
                     if (errors.length != 0) {
                         var notificationObj = {
-                            processid: eventDetails.processid,
-                            stage: eventDetails.stagename,
+                            processid: messageObj.processid,
+                            stage: messageObj.stagename,
                             error: errors,
-                            timestamp: eventDetails.timestamp,
+                            timestamp: messageObj.timestamp,
                             engine: engineid,
                             process: {
-                                status: eventDetails.status,
-                                outcome: eventDetails.outcome,
-                                compliance: eventDetails.compliance
+                                status: messageObj.status,
+                                outcome: messageObj.outcome,
+                                compliance: messageObj.compliance
                             }
                         }
                         notifyEntities(monitoredProcesses, notificationRules, JSON.stringify(notificationObj))
@@ -140,7 +137,7 @@ function Monitoring(type, monitored, notificationRules) {
 }
 
 
-function startMonitoringActivity(type, monitored, notified, id) {
+function startMonitoringActivity(type, monitored, notificationRules, id) {
     if (id == undefined) {
         id = UUID.v4()
     }
@@ -148,7 +145,7 @@ function startMonitoringActivity(type, monitored, notified, id) {
         LOG.logSystem('WARNING', `Activity already exists with id ${id}, cannot be add again`)
         return
     }
-    MONITORING_ACTIVITIES.set(id, new Monitoring(type, monitored, notified))
+    MONITORING_ACTIVITIES.set(id, new Monitoring(type, monitored, notificationRules))
 }
 
 
@@ -159,8 +156,8 @@ module.exports = {
     //Creates and starts a new monitoring activity based on the provided config file 
     startMonitoringActivity: startMonitoringActivity,
     //Stops a selected monitoring activity
-    stopMonitoringActivity: stopMonitoringActivity,
+    //stopMonitoringActivity: stopMonitoringActivity,
     //Returns a list of existing monitoring activity ID-s
-    getMonitoringActivities: getMonitoringActivities
+    //getMonitoringActivities: getMonitoringActivities
 
 }

@@ -4,6 +4,7 @@ var fs = require('fs');
 var LOG = require('../auxiliary/LogManager')
 var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
+var MONITORING = require('../monitoring/monitoringmanager');
 
 
 module.id = "AUTOCONFIG"
@@ -34,7 +35,7 @@ function parseNotificationMethod(method) {
         result['topic'] = method['notification-topic'][0]
     }
     else {
-        LOG.logSystem('FATAL', `${type} is not recognized as a notification method`,module.id)
+        LOG.logSystem('FATAL', `${type} is not recognized as a notification method`, module.id)
     }
     return result
 }
@@ -148,8 +149,10 @@ function applyMonitoringConfig(config) {
         });
 
         //Retrieving further information about monitoring
-        var type = config['aggregation-profile']['type'][0]
-        var notificationRules = config['aggregation-profile']['notified']
+        var type = element['type'][0]
+        var notificationRules = element['notified']
+        var monitroingId = element['id'] || undefined
+        MONITORING.startMonitoringActivity(type, monitoredProcesses, notificationRules, monitroingId)
     });
 
     //Retrieving artifact monitoring definitions and iterating through them

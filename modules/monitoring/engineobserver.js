@@ -4,7 +4,7 @@ var LOG = require('../auxiliary/LogManager')
 var MQTT = require('../communication/mqttconnector')
 var DYNAMO = require('../database/dynamoconnector')
 var DB = require('../database/databaseconnector')
-module.id = "EVENT_LOGGER"
+module.id = "ENGINE_OBSERVER"
 
 var eventEmitter = new events.EventEmitter();
 
@@ -13,6 +13,13 @@ var ENGINES = new Map()
 //Data structures to calculate event ID-s
 var STAGE_EVENT_ID = new Map()
 var ARTIFACT_EVENT_ID = new Map()
+
+//function verifyStageState(status, compliance) {
+//    if (status == 'faulty' || compliance == 'outOfOrder' || compliance == 'skipped') {
+//        return false
+//    }
+//    return true
+//}
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
@@ -25,22 +32,31 @@ function onMessageReceived(hostname, port, topic, message) {
         //Engine event has to be write into database
         switch (elements[2]) {
             case 'stage_log':
-            //TODO: revise
-            /*var eventid = STAGE_EVENT_ID.get(engineid) + 1
-            STAGE_EVENT_ID.set(engineid, eventid)
+                //TODO: revise
+                var eventid = STAGE_EVENT_ID.get(engineid) + 1
+                STAGE_EVENT_ID.set(engineid, eventid)
 
-            var timestamp = msgJson.timestamp
-            var details = msgJson.details
-            var stagename = msgJson.stagename
 
-            DB.writeStageEvent(engineid, stagename, eventid, details, timestamp)
+                if (msgJson.processid == undefined || msgJson.stagename == undefined || msgJson.timestamp == undefined ||
+                    msgJson.status == undefined || msgJson.state == undefined || msgJson.compliance == undefined) {
+                    LOG.logWorker('WARNING', `Data is missing to write StageEvent log`, module.id)
+                    return
+                }
 
-            //Notify core if needed
-            var eventtype = checkStageForError(stagename, details)
-            if (eventtype != 'correct') {
-                eventEmitter.emit(engineid + '/stage_log', msgJson)
-            }
-            break;*/
+                var processid = msgJson.processid
+                var stagename = msgJson.stagename
+                var timestamp = msgJson.timestamp
+                var status = msgJson.status
+                var state = msgJson.state
+                var compliance = msgJson.compliance
+
+                //TODO: add database writing
+                //DB.writeStageEvent(engineid, stagename, eventid, details, timestamp)
+
+                //Notify core
+                eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
+                break;
+
             case 'artifact_log':
                 var eventid = ARTIFACT_EVENT_ID.get(engineid) + 1
                 ARTIFACT_EVENT_ID.set(engineid, eventid)
