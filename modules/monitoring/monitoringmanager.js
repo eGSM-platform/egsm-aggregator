@@ -2,26 +2,114 @@ var UUID = require('uuid');
 
 var DDB = require("../database/databaseconnector")
 var LOG = require('../auxiliary/LogManager')
-var OBSERVER = require('./engineobserver')
+var OBSERVER = require('./engineobserver');
+var MQTT = require('../communication/mqttconnector')
 
 module.id = "MONITORING_MANAGER"
 
 var MONITORING_ACTIVITIES = new Map();
 
-function evaluateStageEvent(eventDetailJson){
-
+function evaluateStageEvent(eventDetails) {
+    var errors = []
+    //if(eventDetailObj.status == 'unopened'){
+    //    errors.push('unopened')
+    //}
+    if (eventDetails.outcome == 'faulty') {
+        errors.push(eventDetails.outcome)
+    }
+    if (eventDetails.compliance != 'onTime') {
+        errors.push(eventDetails.compliance)
+    }
+    return errors
 }
 
-function Monitoring(type, monitored, notified) {
+function notifyStakeholder(stakeholderid, notification) {
+    DDB.readStakeholder(stakeholderid).then((data, err) => {
+        if (err) {
+            LOG.logSystem('ERROR', `Error while retrieving information about ${stakeholderid}`, module.id)
+        }
+        else {
+            var notificationDetailsObj = JSON.parse(data.notificationdetails)
+            if (notificationDetailsObj.type == 'mqtt') {
+                MQTT.publishTopic(notificationDetailsObj.host, notificationDetailsObj.port, notificationDetailsObj.topic, notification)
+            }
+            //TODO: Update if other notification methods are available
+        }
+    })
+}
+
+async function notifyEntities(monitoredProcesses, notificationRules, notification) {
+    var notifiedEntities = new Set() //Set containeng the entities should be notified
+    var promises = []
+    notificationRules.forEach(rule => {
+        switch (rule) {
+            case 'PROCESS_OWNERS':
+                monitoredProcesses.forEach(process => {
+                    var nameElements = process.split('/')
+                    var type = nameElements[0]
+                    var instnaceId = nameElements[1]
+                    promises.push(new Promise((resolve, reject) => {
+                        DDB.readProcessInstance(type, instnaceId).then((data, err) => {
+                            if (err) {
+                                LOG.logSystem('ERROR', 'Error while retrieving information about process instance', module.id)
+                                reject()
+                            }
+                            else {
+                                data.stakeholders.forEach(stakeholder => {
+                                    if (!notifiedEntities.has(stakeholder)) {
+                                        notifiedEntities.add(stakeholder)
+                                    }
+                                });
+                                resolve()
+                            }
+                        })
+                    }))
+                });
+                break;
+            case 'ARTIFACT_OWNERS':
+                //TODO
+                break;
+            case 'ATTACHED_ARTIFACT_USERS':
+                //TODO
+                break;
+        }
+    });
+    await Promise.all(promises)
+    promises = []
+    notifiedEntities.forEach(entity => {
+        notifyStakeholder(entity, notification)
+    });
+}
+
+function Monitoring(type, monitored, notificationRules) {
     //var monitoringID = id
     var monitoringType = type
     var monitoredProcesses = monitored
-    var notifiedEntities = notified
+    var notificationRules = notificationRules
+
 
     var eventHandler = function (engineid, eventtype, msgJson) {
+        var eventDetails = JSON.parse(msgJson)
         switch (monitoringType) {
             case 'process-execution-deviation-detection':
-
+                if (eventtype == 'stage_log') {
+                    var errors = evaluateStageEvent(eventDetails)
+                    if (errors.length != 0) {
+                        var notificationObj = {
+                            processid: eventDetails.processid,
+                            stage: eventDetails.stagename,
+                            error: errors,
+                            timestamp: eventDetails.timestamp,
+                            engine: engineid,
+                            process: {
+                                status: eventDetails.status,
+                                outcome: eventDetails.outcome,
+                                compliance: eventDetails.compliance
+                            }
+                        }
+                        notifyEntities(monitoredProcesses, notificationRules, JSON.stringify(notificationObj))
+                    }
+                }
                 break;
             case 'artifact-failure-rate-warning':
 
