@@ -1,15 +1,23 @@
 <content>
     <!-- Defining Process types -->
     <process-instance>
-        <type-name>DummyProcess</type-name>
+        <type-name>DummyProcessType</type-name>
         <instance-id>instance-1</instance-id>
-        <stakeholder>Truck Company</stakeholder>
-        <stakeholder>Shipping Company</stakeholder>
-        <group>Process-Group-1</group>
-        <group>Process-Group-2</group>
+        <host>localhost</host>
+        <port>1883</port>
+        <stakeholder>stakeholder/1</stakeholder>
+        <stakeholder>stakeholder/1</stakeholder>
+    </process-instance>
+    <process-instance>
+        <type-name>DummyProcessType</type-name>
+        <instance-id>instance-2</instance-id>
+        <host>localhost</host>
+        <port>1883</port>
+        <stakeholder>stakeholder/1</stakeholder>
+        <stakeholder>stakeholder/1</stakeholder>
     </process-instance>
 
-        <!-- Defining Process groups which can be used later to specify monitoring tasks
+    <!-- Defining Process groups which can be used later to specify monitoring tasks
     Note that not all member process instance need to be defined in this file, they may be
     alredy added to the database-->
     <process-group>

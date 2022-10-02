@@ -6,8 +6,8 @@
         <process-group>group-1</process-group>
         <process-group>group-2</process-group>
         <!--Additional member can be added by member keyword, or it can be used exclusively as well-->
-        <member>process-2</member>
-        <member>process-3</member>
+        <member>DummyProcessType/instance-1</member>
+        <member>DummyProcessType/instance-2</member>
         <!--If any stage event deviation was observed in any member process -->
         <type>process-execution-deviation-detection</type>
         <!--The process owner(s) in the process group are notified about the error -->
