@@ -8,7 +8,7 @@ var MONITORING = require('../monitoring/monitoringmanager');
 var VALIDATOR = require('../validator')
 
 
-module.id = "AUTOCONFIG"
+module.id = "AUTOC"
 
 function parseConfigFile(config) {
     var final

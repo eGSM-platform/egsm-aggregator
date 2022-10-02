@@ -15,7 +15,7 @@ async function initTables() {
 
     promises.push(DYNAMO.initTable('ARTIFACT_DEFINITION', 'ARTIFACT_TYPE', 'ARTIFACT_ID'))
     promises.push(DYNAMO.initTable('ARTIFACT_USAGE', 'ARTIFACT_NAME', 'CASE_ID'))
-    promises.push(DYNAMO.initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID'))
+    promises.push(DYNAMO.initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID', { indexname: 'PROCESSED_INDEX', pk: { name: 'ENTRY_PROCESSED', type: 'N' } }))
     promises.push(DYNAMO.initTable('STAGE_EVENT', 'PROCESS_NAME', 'EVENT_ID'))
     await Promise.all(promises)
 }
@@ -333,16 +333,32 @@ test('[readUnprocessedArtifactEvents] [WRITE AND READ]', async () => {
     var expected1 = []
     for (var i = 0; i < 5; i++) {
         expected1.push({
-            ARTIFACT_NAME: { S: 'artifact1/instance1' },
-            EVENT_ID: { S: `event-${i}` },
-            UTC_TIME: { N: '1000' },
-            ARTIFACT_STATE: { S: 'attached' },
-            PROCESS_TYPE: { S: 'process_type1' },
-            PROCESS_ID: { S: '001' },
-            ENTRY_PROCESSED: { N: '0' }
+            timestamp: 1000,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`,
+            entry_processed: 0
         })
     }
     expect(data1).toEqual(expected1)
+
+    //Add some further entries and read unprocessed entries
+    //without specifying artifact
+    for (var i = 0; i < 5; i++) {
+        var eventDetailJson = {
+            timestamp: 1000 + i,
+            artifact_name: `artifact${i}/instance${i}`,
+            artifact_state: 'detached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${4 + i}`
+        }
+        await DB.writeArtifactEvent(eventDetailJson)
+    }
+    var data2 = await DB.readUnprocessedArtifactEvents()
+    expect(data2.length).toEqual(10)
 })
 
 test('[readOlderArtifactEvents] [WRITE AND READ]', async () => {
@@ -364,13 +380,13 @@ test('[readOlderArtifactEvents] [WRITE AND READ]', async () => {
     var expected1 = []
     for (var i = 0; i < 5; i++) {
         expected1.push({
-            ARTIFACT_NAME: { S: 'artifact1/instance1' },
-            EVENT_ID: { S: `event-${i}` },
-            UTC_TIME: { N: `${1000 + i}` },
-            ARTIFACT_STATE: { S: 'attached' },
-            PROCESS_TYPE: { S: 'process_type1' },
-            PROCESS_ID: { S: '001' },
-            ENTRY_PROCESSED: { N: '0' }
+            timestamp: 1000 + i,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`,
+            entry_processed: 0
         })
     }
     expect(data1).toEqual(expected1)
@@ -399,13 +415,13 @@ test('[setArtifactEventToProcessed] [WRITE AND READ]', async () => {
     var expected1 = []
     for (var i = 1; i < 2; i++) {
         expected1.push({
-            ARTIFACT_NAME: { S: 'artifact1/instance1' },
-            EVENT_ID: { S: `event-${i}` },
-            UTC_TIME: { N: `${1000 + i}` },
-            ARTIFACT_STATE: { S: 'attached' },
-            PROCESS_TYPE: { S: 'process_type1' },
-            PROCESS_ID: { S: '001' },
-            ENTRY_PROCESSED: { N: '0' }
+            timestamp: 1000 + i,
+            artifact_name: 'artifact1/instance1',
+            artifact_state: 'attached',
+            process_type: 'process_type1',
+            process_id: '001',
+            event_id: `event-${i}`,
+            entry_processed: 0
         })
     }
     expect(data1).toEqual(expected1)

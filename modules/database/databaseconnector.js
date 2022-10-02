@@ -20,8 +20,32 @@ async function writeNewArtifactDefinition(artifactType, artifactId, stakeholders
 }
 
 //TODO
-//async function readArtifactDefinition(artifactType, artifactI){
-//}
+/*async function readArtifactDefinition(artifactType, artifactId) {
+    var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
+    var sk = { name: 'ARTIFACT_ID', value: artifactId }
+    const data = await DYNAMO.readItem('ARTIFACT_DEFINITION', pk, sk)
+    var final = undefined
+    if (!data?.Item) {
+        final = {
+            artifacttype: data.Item?.ARTIFACT_TYPE.S,
+            artifactid: data.Item?.ARTIFACT_ID.S,
+            stakeholders: data.Item?.STAKEHOLDERS.L,
+            attachedto: data.Item?.ATTACHED_TO.L,
+            //faultyrates: data.Item?.FAULTY_RATES,
+            //timingfaultyrates: data.Item?.TIMING_FAULTY_RATES,
+            host: data.Item?.HOST,
+            port: data.Item?.PORT,
+        }
+    }
+}
+
+async function writeArtifactAttachment(artifactType, artifactId, processid) {
+
+}
+
+async function writeArtifactDetachment(artifactType, artifactId, processid) {
+
+}*/
 
 async function isArtifactDefined(artifactType, artifactId) {
     var pk = { name: 'ARTIFACT_TYPE', value: artifactType }
@@ -42,7 +66,10 @@ async function getArtifactStakeholders(artifactType, artifactId) {
     }
     var projectionexpression = `STAKEHOLDERS`
     const result = await DYNAMO.query('ARTIFACT_DEFINITION', keyexpression, expressionattributevalues, undefined, projectionexpression)
-    return result[0]['STAKEHOLDERS']['SS']
+    if (result != undefined) {
+        return result[0]['STAKEHOLDERS']['SS']
+    }
+    return []
 }
 
 async function addNewFaultyRateWindow(artifactType, artifactId, window) {
@@ -126,14 +153,36 @@ function writeArtifactEvent(eventDetailsJson) {
 }
 
 async function readUnprocessedArtifactEvents(artifactName) {
-    var keyexpression = 'ARTIFACT_NAME = :a'
-    var expressionattributevalues = {
-        ':a': { S: artifactName },
-        ':b': { N: '0' }
+    var result = []
+    if (artifactName == undefined) {
+        var keyexpression = 'ENTRY_PROCESSED = :a'
+        var expressionattributevalues = {
+            ':a': { N: '0' },
+        }
+        result = await DYNAMO.query('ARTIFACT_EVENT', keyexpression, expressionattributevalues, undefined, undefined, 'PROCESSED_INDEX')
     }
-    var filterexpression = 'ENTRY_PROCESSED = :b'
-    const result = await DYNAMO.query('ARTIFACT_EVENT', keyexpression, expressionattributevalues, filterexpression)
-    return result
+    else{
+        var keyexpression = 'ARTIFACT_NAME = :a'
+        var expressionattributevalues = {
+            ':a': { S: artifactName },
+            ':b': { N: '0' }
+        }
+        var filterexpression = 'ENTRY_PROCESSED = :b'
+        result = await DYNAMO.query('ARTIFACT_EVENT', keyexpression, expressionattributevalues, filterexpression)
+    }
+    var final = []
+    result.forEach(element => {
+        final.push({
+            process_type: element.PROCESS_TYPE.S,
+            entry_processed: Number(element.ENTRY_PROCESSED.N),
+            artifact_state: element.ARTIFACT_STATE.S,
+            artifact_name: element.ARTIFACT_NAME.S,
+            event_id: element.EVENT_ID.S,
+            timestamp: Number(element.UTC_TIME.N),
+            process_id: element.PROCESS_ID.S,
+        })
+    });
+    return final
 }
 
 async function readOlderArtifactEvents(artifactName, upperutctime) {
@@ -144,7 +193,19 @@ async function readOlderArtifactEvents(artifactName, upperutctime) {
     }
     var filterexpression = 'UTC_TIME <= :b'
     const result = await DYNAMO.query('ARTIFACT_EVENT', keyexpression, expressionattributevalues, filterexpression)
-    return result
+    var final = []
+    result.forEach(element => {
+        final.push({
+            process_type: element.PROCESS_TYPE.S,
+            entry_processed: Number(element.ENTRY_PROCESSED.N),
+            artifact_state: element.ARTIFACT_STATE.S,
+            artifact_name: element.ARTIFACT_NAME.S,
+            event_id: element.EVENT_ID.S,
+            timestamp: Number(element.UTC_TIME.N),
+            process_id: element.PROCESS_ID.S,
+        })
+    });
+    return final
 }
 
 function setArtifactEventToProcessed(artifactname, eventid) {
@@ -276,8 +337,8 @@ async function readProcessInstance(processtype, instanceid) {
             stakeholders: data['Item']?.STAKEHOLDERS?.SS || [],
             groups: data['Item']?.GROUPS?.SS || [],
             attached: [],
-            host : data['Item']?.HOST?.S || 'localhost',
-            port : Number(data['Item']?.PORT?.N) || 1883,
+            host: data['Item']?.HOST?.S || 'localhost',
+            port: Number(data['Item']?.PORT?.N) || 1883,
         }
     }
     var attachedbuff = data['Item']?.ATTACHED_TO?.L || []

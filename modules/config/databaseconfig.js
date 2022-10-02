@@ -1,11 +1,12 @@
 var DYNAMO = require('../database/dynamoconnector')
+var DB = require('../database/databaseconnector')
 
 DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:8000')
 
 var tables = [
     { name: 'ARTIFACT_DEFINITION', pk: 'ARTIFACT_TYPE', sk: 'ARTIFACT_ID' },
     { name: 'ARTIFACT_USAGE', pk: 'ARTIFACT_NAME', sk: 'CASE_ID' },
-    { name: 'ARTIFACT_EVENT', pk: 'ARTIFACT_NAME', sk: 'EVENT_ID' },
+    { name: 'ARTIFACT_EVENT', pk: 'ARTIFACT_NAME', sk: 'EVENT_ID', secondaryindex: { indexname: 'PROCESSED_INDEX', pk: { name: 'ENTRY_PROCESSED', type: 'N' } } },
     { name: 'PROCESS_TYPE', pk: 'PROCESS_TYPE_NAME', sk: undefined },
     { name: 'STAKEHOLDERS', pk: 'STAKEHOLDER_ID', sk: undefined },
     { name: 'PROCESS_INSTANCE', pk: 'PROCESS_TYPE_NAME', sk: 'INSTANCE_ID' },
@@ -31,7 +32,7 @@ async function initDatabase() {
 
     tables.forEach(element => {
         try {
-            promises.push(DYNAMO.initTable(element.name, element.pk, element.sk))
+            promises.push(DYNAMO.initTable(element.name, element.pk, element.sk, element?.secondaryindex || undefined))
             console.log(element.name + ' created')
         } catch (error) {
             console.error(element.name + ' could not be created')

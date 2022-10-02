@@ -6,7 +6,7 @@ var DYNAMO = require('../database/dynamoconnector')
 var DB = require('../database/databaseconnector')
 var VALIDATOR = require('../validator')
 
-module.id = "ENGINE_OBSERVER"
+module.id = "OBSV"
 
 var eventEmitter = new events.EventEmitter();
 

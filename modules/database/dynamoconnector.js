@@ -26,7 +26,7 @@ function verifyInit() {
     return true
 }
 
-async function initTable(tablename, pk, sk) {
+async function initTable(tablename, pk, sk, globalsecondaryIndex) {
     verifyInit()
     var params = {
         AttributeDefinitions: [
@@ -48,8 +48,28 @@ async function initTable(tablename, pk, sk) {
         TableName: tablename,
         StreamSpecification: {
             StreamEnabled: false
-        }
+        },
     };
+    if (globalsecondaryIndex != undefined) {
+        params.AttributeDefinitions.push({
+            AttributeName: globalsecondaryIndex.pk.name,
+            AttributeType: globalsecondaryIndex.pk?.type || 'S'
+        })
+        params.GlobalSecondaryIndexes = [{
+            IndexName: globalsecondaryIndex.indexname,
+            KeySchema: [
+                { AttributeName: globalsecondaryIndex.pk.name, KeyType: "HASH" },  //Partition key
+                //{ AttributeName: "tm", KeyType: "RANGE" }  //Sort key
+            ],
+            Projection: {
+                ProjectionType: 'ALL'
+            },
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 10,
+                WriteCapacityUnits: 10
+            }
+        }]
+    }
     if (sk != undefined) {
         params.AttributeDefinitions.push(
             {
@@ -318,12 +338,12 @@ function deleteItem(tablename, pk, sk, expressionattributevalues, conditionexpre
     })
 }
 
-async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression, projectionexpression) {
+async function query(tablename, keyconditionexpression, expressionattributevalues, filterexpression, projectionexpression, secondaryindex) {
     verifyInit()
     let result, ExclusiveStartKey;
     var accumulated = []
     do {
-        result = await DDB.query({
+        var params = {
             TableName: tablename,
             ExclusiveStartKey,
             Limit: 1,
@@ -331,7 +351,11 @@ async function query(tablename, keyconditionexpression, expressionattributevalue
             ExpressionAttributeValues: expressionattributevalues,
             FilterExpression: filterexpression,
             ProjectionExpression: projectionexpression
-        }).promise();
+        }
+        if(secondaryindex != undefined){
+            params['IndexName'] = secondaryindex
+        }
+        result = await DDB.query(params).promise();
 
         ExclusiveStartKey = result.LastEvaluatedKey;
         accumulated = [...accumulated, ...result.Items];
@@ -339,10 +363,11 @@ async function query(tablename, keyconditionexpression, expressionattributevalue
 
     return accumulated;
 }
+
 module.exports = {
     initDynamo: initDynamo,
-    initTable:initTable,
-    deleteTable:deleteTable,
+    initTable: initTable,
+    deleteTable: deleteTable,
     writeItem: writeItem,
     readItem: readItem,
     updateItem: updateItem,
