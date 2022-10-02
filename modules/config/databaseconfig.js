@@ -14,6 +14,33 @@ var tables = [
     { name: 'STAGE_EVENT', pk: 'PROCESS_NAME', sk: 'EVENT_ID' },
 ]
 
-tables.forEach(element => {
-    DYNAMO.initTable(element.name, element.pk, element.sk)
-});
+var promises = []
+
+async function initDatabase() {
+    tables.forEach(element => {
+        try {
+            promises.push(DYNAMO.deleteTable(element.name))
+            console.log(element.name + ' deleted')
+        } catch (error) {
+            console.error(element.name + ' could not be deleted')
+        }
+    });
+
+    await Promise.all(promises)
+    promises = []
+
+    tables.forEach(element => {
+        try {
+            promises.push(DYNAMO.initTable(element.name, element.pk, element.sk))
+            console.log(element.name + ' created')
+        } catch (error) {
+            console.error(element.name + ' could not be created')
+        }
+    });
+
+    await Promise.all(promises)
+}
+
+console.log('Initialization process started...')
+initDatabase()
+console.log('Operation finished')
