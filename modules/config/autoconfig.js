@@ -5,6 +5,7 @@ var LOG = require('../auxiliary/LogManager')
 var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
+var VALIDATOR = require('./validator')
 
 
 module.id = "AUTOCONFIG"
@@ -59,13 +60,18 @@ function applyContentConfig(config) {
     //Adding Artifacts
     var artifacts = config['content']?.['artifact'] || []
     artifacts.forEach(element => {
-        var stakeholderConnections = []
-        element['stakeholder'].forEach(element2 => {
-            stakeholderConnections.push(element2)
-        });
+        if (!VALIDATOR.validateArtifact(element['type'][0], element['instance-id'][0])) {
+            LOG.logSystem('ERROR', `Artifact ${element['type'][0]}/${element['instance-id'][0]} could not added due to naming error`, module.id)
+        }
+        else {
+            var stakeholderConnections = []
+            element['stakeholder'].forEach(element2 => {
+                stakeholderConnections.push(element2)
+            });
 
-        if (!CONTENTMANAGER.defineArtifact(element['type'][0], element['instance-id'][0], stakeholderConnections, element['host'][0], element['port'][0])) {
-            throw Error(`Could not define artifact ${element['type'][0]}/${element['instance-id'][0]}`)
+            if (!CONTENTMANAGER.defineArtifact(element['type'][0], element['instance-id'][0], stakeholderConnections, element['host'][0], element['port'][0])) {
+                throw Error(`Could not define artifact ${element['type'][0]}/${element['instance-id'][0]}`)
+            }
         }
     });
 }
@@ -74,12 +80,17 @@ function applyProcessTypeConfig(config) {
     var processes = config['content']?.processtype || []
 
     processes.forEach(element => {
-        var name = element['type-name'][0]
-        var egsm_info = fs.readFileSync(element['egsm-info'][0], 'utf8')
-        var egsm_model = fs.readFileSync(element['egsm-model'][0], 'utf8')
-        var bpmn_model = fs.readFileSync(element['bpmn-model'][0], 'utf8')
-        if (!CONTENTMANAGER.defineProcessType(name, egsm_info, egsm_model, bpmn_model)) {
-            throw Error(`Could not define process type ${name}`)
+        if (!VALIDATOR.validateProcessType(element['type-name'][0])) {
+            LOG.logSystem('ERROR', `Process type name is invalid (${element['type-name'][0]}). Did not added to database`)
+        }
+        else {
+            var name = element['type-name'][0]
+            var egsm_info = fs.readFileSync(element['egsm-info'][0], 'utf8')
+            var egsm_model = fs.readFileSync(element['egsm-model'][0], 'utf8')
+            var bpmn_model = fs.readFileSync(element['bpmn-model'][0], 'utf8')
+            if (!CONTENTMANAGER.defineProcessType(name, egsm_info, egsm_model, bpmn_model)) {
+                throw Error(`Could not define process type ${name}`)
+            }
         }
     })
 }
@@ -88,21 +99,28 @@ function applyProcessInstnaceConfig(config) {
     //Adding process instances
     var processes = config['content']?.['process-instance'] || []
     processes.forEach(element => {
-        var type = element['type-name'][0]
-        var instance = element['instance-id'][0]
-        var stakeholdersRaw = element?.['stakeholders'] || []
-        var stakeholders = []
+        if (!VALIDATOR.validateProcessInstance(element['type-name'][0], element['instance-id'][0])) {
+            LOG.logSystem('ERROR', `Process instance name is invalid (${element['type-name'][0]}/${element['instance-id'][0]}). Did not added to database`)
+        }
+        else {
+            var type = element['type-name'][0]
+            var instance = element['instance-id'][0]
+            var host = element['host'][0]
+            var port = element['port'][0]
+            var stakeholdersRaw = element?.['stakeholders'] || []
+            var stakeholders = []
 
-        stakeholdersRaw.forEach(element => {
-            stakeholders.push(element)
-        })
-        var groupsRaw = element?.['group'] || []
-        var groups = []
-        groupsRaw.forEach(element => {
-            groups.push(element)
-        })
-        if (!CONTENTMANAGER.defineAndStartProcessInstance(type, instance, stakeholders, groups)) {
-            throw Error(`Could not define process instance  ${type}/${instance}`)
+            stakeholdersRaw.forEach(element => {
+                stakeholders.push(element)
+            })
+            var groupsRaw = element?.['group'] || []
+            var groups = []
+            groupsRaw.forEach(element => {
+                groups.push(element)
+            })
+            if (!CONTENTMANAGER.defineAndStartProcessInstance(type, instance, stakeholders, groups, host, port)) {
+                throw Error(`Could not define process instance  ${type}/${instance}`)
+            }
         }
     })
 

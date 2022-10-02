@@ -68,7 +68,16 @@ function onMessageReceived(hostname, port, topic, message) {
                 }
 
                 msgJson['event_id'] = eventid
+                //Write artifact event into Database
                 DB.writeArtifactEvent(msgJson)
+
+                //Update process instance attachment in Database
+                if (msgJson.artifact_state == 'attached') {
+                    DB.attachArtifactToProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
+                }
+                else {
+                    DB.deattachArtifactFromProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
+                }
 
                 //Notify core if about the event and it will evaluate based on historical data and
                 //the configured observation if any further thing is needed to do
@@ -89,10 +98,22 @@ function onMessageReceived(hostname, port, topic, message) {
     }
 }
 
-function addEngine(engineid, hostname, port) {
+async function addEngine(engineid) {
     LOG.logWorker('DEBUG', `addEngine called: ${engineid} -> ${hostname}:${port}`, module.id)
     //Add engine to the module collections
     if (!ENGINES.has(engineid)) {
+        //Retrieving engine details from Database
+        var elements = engineid.split('/')
+        var type = elements[0]
+        var instanceid = elements[1]
+        var retrieved = await DB.readProcessInstance(type,instanceid)
+        if(retrieved == undefined){
+            LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
+            return
+        }
+        var hostname = retrieved.host
+        var port = retrieved.port
+
         ENGINES.set(engineid, { hostname: hostname, port: port })
         STAGE_EVENT_ID.set(engineid, 0)
         ARTIFACT_EVENT_ID.set(engineid, 0)

@@ -233,7 +233,7 @@ async function readProcessType(proccesstype) {
 //Function to create a new process instance
 //Process instance status is automatically set to 'ongoing'
 //Status can be changed and end time can be added by closeOngoingProcessInstance function 
-async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime, attached) {
+async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime, attached, host, port) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
     var attributes = []
@@ -254,6 +254,8 @@ async function writeNewProcessInstance(processtype, instanceid, stakeholders, gr
     attributes.push({ name: 'STARTING_TIME', type: 'N', value: startingtime.toString() })
     attributes.push({ name: 'ENDING_TIME', type: 'N', value: '-1' })
     attributes.push({ name: 'STATUS', type: 'S', value: 'ongoing' })
+    attributes.push({ name: 'HOST', type: 'S', value: host })
+    attributes.push({ name: 'PORT', type: 'N', value: port.toString() })
     return DYNAMO.writeItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
@@ -273,7 +275,9 @@ async function readProcessInstance(processtype, instanceid) {
             status: data['Item']['STATUS']['S'],
             stakeholders: data['Item']?.STAKEHOLDERS?.SS || [],
             groups: data['Item']?.GROUPS?.SS || [],
-            attached: []
+            attached: [],
+            host : data['Item']?.HOST?.S || 'localhost',
+            port : Number(data['Item']?.PORT?.N) || 1883,
         }
     }
     var attachedbuff = data['Item']?.ATTACHED_TO?.L || []
