@@ -11,13 +11,13 @@ var system_log = fs.createWriteStream('log/' + prefix + '/worker.log', { flags: 
 
 function writeConsole(type, value, location) {
   if (LOG_LEVELS[type] < 2) {
-    console.log(util.format('[' + location + '] ' + type + ' - ' + value))
+    console.log(util.format('[' + location + ']\t' + type + ' \t ' + value))
   }
   else if (LOG_LEVELS[type] == 2) {
-    console.log("\x1b[33m%s\x1b[0m", util.format('[' + location + '] ' + type + ' - ' + value))
+    console.log("\x1b[33m%s\x1b[0m", util.format('[' + location + ']\t' + type + ' \t ' + value))
   }
   else {
-    console.log('\x1b[31m%s\x1b[0m', util.format('[' + location + '] ' + type + ' - ' + value))
+    console.log('\x1b[31m%s\x1b[0m', util.format('[' + location + ']\t' + type + ' \t ' + value))
   }
 }
 
