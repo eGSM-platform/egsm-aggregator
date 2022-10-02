@@ -521,7 +521,7 @@ test('[readProcessType][WRITE AND READ]', async () => {
 })
 
 test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, ['truck/instance-1'])
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
     var expected1 = {
         processtype: 'dummy1',
@@ -530,12 +530,13 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2']
+        groups: ['group1', 'group2'],
+        attached: ['truck/instance-1']
     }
     expect(data1).toEqual(expected1)
 
     //With empty arrays
-    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000)
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000, [])
     const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
     var expected2 = {
         processtype: 'dummy2',
@@ -544,7 +545,8 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
         endingtime: -1,
         status: 'ongoing',
         stakeholders: [],
-        groups: []
+        groups: [],
+        attached: []
     }
     expect(data2).toEqual(expected2)
 
@@ -555,7 +557,7 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
 })
 
 test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [])
     await DB.closeOngoingProcessInstance('dummy1', 'instance-1', 1550)
 
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
@@ -566,7 +568,8 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
         endingtime: 1550,
         status: 'finished',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2']
+        groups: ['group1', 'group2'],
+        attached: []
     }
     expect(data1).toEqual(expected1)
 
@@ -581,13 +584,118 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
         endingtime: 2560,
         status: 'finished',
         stakeholders: [],
-        groups: []
+        groups: [],
+        attached: []
     }
     expect(data2).toEqual(expected2)
 
     //Try to close undefined process
     expect(() => { DB.closeOngoingProcessInstance('dummy22', 'instance-3', 2560) }).not.toThrow()
 })
+
+test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [])
+    await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-1')
+
+    const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected1 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: ['truck/instance-1']
+    }
+    expect(data1).toEqual(expected1)
+
+    await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-2')
+
+    const data2 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected2 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: ['truck/instance-1', 'truck/instance-2']
+    }
+    expect(data2).toEqual(expected2)
+
+    await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-2')
+    const data3 = await DB.readProcessInstance('dummy1', 'instance-1')
+    expect(data3).toEqual(expected2)
+})
+
+test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [])
+    await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck1')
+    const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected1 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: []
+    }
+    expect(data1).toEqual(expected1)
+
+    await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-1')
+    await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-2')
+
+    const data2 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected2 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: ['truck/instance-1', 'truck/instance-2']
+    }
+    expect(data2).toEqual(expected2)
+
+    await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck/instance-1')
+    const data3 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected3 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: ['truck/instance-2']
+    }
+    expect(data3).toEqual(expected3)
+
+    await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck/instance-3')
+    const data4 = await DB.readProcessInstance('dummy1', 'instance-1')
+    expect(data4).toEqual(expected3)
+
+    await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck/instance-2')
+    const data5 = await DB.readProcessInstance('dummy1', 'instance-1')
+    var expected5 = {
+        processtype: 'dummy1',
+        instanceid: 'instance-1',
+        startingtime: 1000,
+        endingtime: -1,
+        status: 'ongoing',
+        stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
+        groups: ['group1', 'group2'],
+        attached: []
+    }
+    expect(data5).toEqual(expected5)
+
+})
+
 
 test('[writeNewStakeholder][readStakeholder][WRITE AND READ]', async () => {
     await DB.writeNewStakeholder('company1', 'mqtt')

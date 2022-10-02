@@ -233,7 +233,7 @@ async function readProcessType(proccesstype) {
 //Function to create a new process instance
 //Process instance status is automatically set to 'ongoing'
 //Status can be changed and end time can be added by closeOngoingProcessInstance function 
-async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime) {
+async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime, attached) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
     var attributes = []
@@ -243,6 +243,14 @@ async function writeNewProcessInstance(processtype, instanceid, stakeholders, gr
     if (groups && groups.length > 0) {
         attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
     }
+    var attachedbuff = []
+    if (attached) {
+        attached.forEach(element => {
+            attachedbuff.push({ S: element })
+        });
+    }
+
+    attributes.push({ name: 'ATTACHED_TO', type: 'L', value: attachedbuff })
     attributes.push({ name: 'STARTING_TIME', type: 'N', value: startingtime.toString() })
     attributes.push({ name: 'ENDING_TIME', type: 'N', value: '-1' })
     attributes.push({ name: 'STATUS', type: 'S', value: 'ongoing' })
@@ -259,14 +267,69 @@ async function readProcessInstance(processtype, instanceid) {
         final = {
             processtype: data['Item']['PROCESS_TYPE_NAME']['S'],
             instanceid: data['Item']['INSTANCE_ID']['S'],
+
             startingtime: Number(data['Item']['STARTING_TIME']['N']),
             endingtime: Number(data['Item']['ENDING_TIME']['N']),
             status: data['Item']['STATUS']['S'],
             stakeholders: data['Item']?.STAKEHOLDERS?.SS || [],
-            groups: data['Item']?.GROUPS?.SS || []
+            groups: data['Item']?.GROUPS?.SS || [],
+            attached: []
         }
     }
+    var attachedbuff = data['Item']?.ATTACHED_TO?.L || []
+    attachedbuff.forEach(element => {
+        final['attached'].push(element['S'])
+    });
     return final
+}
+
+async function attachArtifactToProcessInstance(processtype, instanceid, artifact) {
+    var reading = await readProcessInstance(processtype, instanceid)
+    if (!reading) {
+        LOG.logSystem('ERROR', `Cannot attach artifact to ${processtype}/${instanceid}, because process instance is not defined in database`, module.id)
+        return
+    }
+
+    const found = reading.attached.find(element => element == artifact);
+    if (found) {
+        LOG.logSystem('WARNING', `Artifact ${artifact} is already attached to ${processtype}/${instanceid}`, module.id)
+        return
+    }
+    var updatedattached = reading.attached
+    updatedattached.push(artifact)
+    var attachedbuff = []
+    updatedattached.forEach(element => {
+        attachedbuff.push({ S: element })
+    });
+    var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
+    var sk = { name: 'INSTANCE_ID', value: instanceid }
+    var attributes = []
+    attributes.push({ name: 'ATTACHED_TO', type: 'L', value: attachedbuff })
+    return DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
+}
+
+async function deattachArtifactFromProcessInstance(processtype, instanceid, artifact) {
+    var reading = await readProcessInstance(processtype, instanceid)
+    if (!reading) {
+        LOG.logSystem('ERROR', `Cannot attach artifact to ${processtype}/${instanceid}, because process instance is not defined in database`, module.id)
+        return
+    }
+    const index = reading.attached.indexOf(artifact)
+    if (index == -1) {
+        LOG.logSystem('WARNING', `Artifact ${artifact} is not attached to ${processtype}/${instanceid}, cannot be deattached`, module.id)
+        return
+    }
+    var updatedattached = reading.attached
+    updatedattached.splice(index, 1)
+    var attachedbuff = []
+    updatedattached.forEach(element => {
+        attachedbuff.push({ S: element })
+    });
+    var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
+    var sk = { name: 'INSTANCE_ID', value: instanceid }
+    var attributes = []
+    attributes.push({ name: 'ATTACHED_TO', type: 'L', value: attachedbuff })
+    return DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
 async function closeOngoingProcessInstance(processtype, instanceid, endtime) {
@@ -340,7 +403,7 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
 
     //If the group is already defined
     var oldarray = reading?.processes || []
-    if(!oldarray.includes(newprocessid)){
+    if (!oldarray.includes(newprocessid)) {
         oldarray.push(newprocessid)
     }
     var pk = { name: 'NAME', value: processgroupid }
@@ -348,6 +411,17 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
     attributes.push({ name: 'PROCESSES', type: 'SS', value: oldarray })
     const data = await DYNAMO.updateItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
     return data
+}
+
+//STAGE EVENTS
+function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
+
+    var pk = { name: 'PROCESS_NAME', value: processName }
+    var sk = { name: 'EVENT_ID', value: eventid.toString() }
+    var attributes = []
+    attributes.push({ name: 'TIME', type: 'N', value: utcTimeStamp.toString() })
+    attributes.push({ name: 'STAGE_DETAILS', value: stageDetails })
+    DYNAMO.writeItem('STAGE_EVENT', pk, sk, attributes)
 }
 
 
@@ -538,6 +612,8 @@ module.exports = {
     writeArtifactEvent: writeArtifactEvent,
     readUnprocessedArtifactEvents: readUnprocessedArtifactEvents,
     setArtifactEventToProcessed: setArtifactEventToProcessed,
+    attachArtifactToProcessInstance: attachArtifactToProcessInstance,
+    deattachArtifactFromProcessInstance: deattachArtifactFromProcessInstance,
     readOlderArtifactEvents: readOlderArtifactEvents,
     deleteArtifactEvent: deleteArtifactEvent,
     writeNewProcessType: writeNewProcessType,
@@ -551,4 +627,6 @@ module.exports = {
     writeNewProcessGroup: writeNewProcessGroup,
     readProcessGroup: readProcessGroup,
     addProcessToProcessGroup: addProcessToProcessGroup,
+
+    writeStageEvent: writeStageEvent,
 }
