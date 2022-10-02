@@ -418,137 +418,32 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
 }
 
 //STAGE EVENTS
-function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
-
-    var pk = { name: 'PROCESS_NAME', value: processName }
-    var sk = { name: 'EVENT_ID', value: eventid.toString() }
+async function writeStageEvent(stagelog) {
+    var pk = { name: 'PROCESS_NAME', value: stagelog.processid }
+    var sk = { name: 'EVENT_ID', value: stagelog.eventid }
     var attributes = []
-    attributes.push({ name: 'TIME', type: 'N', value: utcTimeStamp.toString() })
-    attributes.push({ name: 'STAGE_DETAILS', value: stageDetails })
-    DYNAMO.writeItem('STAGE_EVENT', pk, sk, attributes)
+    attributes.push({ name: 'TIMESTAMP', type: 'N', value: stagelog.timestamp.toString() })
+    attributes.push({ name: 'STAGE_NAME', value: stagelog.stagename })
+    attributes.push({ name: 'STAGE_STATUS', value: stagelog.status })
+    attributes.push({ name: 'STAGE_STATE', value: stagelog.state })
+    attributes.push({ name: 'STAGE_COMPLIANCE', value: stagelog.compliance })
+    return DYNAMO.writeItem('STAGE_EVENT', pk, sk, attributes)
 }
 
+//async function writeStageEvent(stagelog) {
+//    var pk = { name: 'PROCESS_NAME', value: stagelog.processid }
+//    var sk = { name: 'EVENT_ID', value: stagelog.eventid }
+//    var attributes = []
+//    attributes.push({ name: 'TIMESTAMP', type: 'N', value: stagelog.timestamp.toString() })
+//    attributes.push({ name: 'STAGE_NAME', value: stagelog.stagename })
+//    attributes.push({ name: 'STAGE_STATUS', value: stagelog.status })
+//    attributes.push({ name: 'STAGE_STATE', value: stagelog.state })
+//    attributes.push({ name: 'STAGE_COMPLIANCE', value: stagelog.compliance })
+//    return DYNAMO.writeItem('STAGE_EVENT', pk, sk, attributes)
+//}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//STAGE EVENTS
-/*function writeStageEvent(processName, stageName, eventid, stageDetails, utcTimeStamp) {
-
-    var pk = { name: 'PROCESS_NAME', value: processName }
-    var sk = { name: 'EVENT_ID', value: eventid.toString() }
-    var attributes = []
-    attributes.push({ name: 'TIME', type: 'N', value: utcTimeStamp.toString() })
-    attributes.push({ name: 'STAGE_DETAILS', value: stageDetails })
-    DYNAMO.writeItem('STAGE_EVENT', pk, sk, attributes)
-}
-
-//ARTIFACT DEFINITION OPERATIONS
-//Should be called when an artifact is attached/detached from a process
-function addArtifactAttachment(artifactType, artifactId, processName) {
-    DYNAMO.readItem('ARTIFACT_DEFINITION', { name: 'TYPE', value: artifactType, }, { name: 'ID', value: artifactId }, 'ATTACHED_TO')
-        .then(function (data) {
-            var processes = []
-            if (data.Item.ATTACHED_TO) {
-                console.log(data.Item.ATTACHED_TO.SS)
-                if (data.Item.ATTACHED_TO.SS.includes(processName)) {
-                    return
-                }
-                processes = [...data.Item.ATTACHED_TO.SS];
-            }
-            processes.push(processName)
-            DYNAMO.updateItem('ARTIFACT_DEFINITION',
-                { name: 'TYPE', value: artifactType },
-                { name: 'ID', value: artifactId },
-                [{ name: 'ATTACHED_TO', type: 'SS', value: processes }])
-        }).catch(err => { console.log('error:' + err) })
-}
-
-function removeArtifactAttachment(artifactType, artifactId, processName) {
-    DYNAMO.readItem('ARTIFACT_DEFINITION', { name: 'TYPE', value: artifactType, }, { name: 'ID', value: artifactId }, 'ATTACHED_TO')
-        .then(function (data) {
-            var processes = []
-            if (!data.Item.ATTACHED_TO) {
-                return
-            }
-            else {
-                console.log(data.Item.ATTACHED_TO.SS)
-                if (!data.Item.ATTACHED_TO.SS.includes(processName)) {
-                    return
-                }
-                for (var i = 0; i < data.Item.ATTACHED_TO.SS.length; i++) {
-                    if (data.Item.ATTACHED_TO.SS[i] === processName) {
-                        data.Item.ATTACHED_TO.SS.splice(i, 1);
-                    }
-                }
-                processes = [...data.Item.ATTACHED_TO.SS];
-                DYNAMO.updateItem('ARTIFACT_DEFINITION',
-                    { name: 'TYPE', value: artifactType },
-                    { name: 'ID', value: artifactId },
-                    [{ name: 'ATTACHED_TO', type: 'SS', value: processes }])
-            }
-        }).catch(err => { console.log('error:' + err) })
-}
-
-function deleteArtifact(artifactType, artifactId) {
-    throw new Error('Non-implemented function')
-}
-
-//PROCESS DEFINITION OPERATIONS
-function writeNewProcessDefinition(processType, processID, stakeholders, groups, status) {
-    var pk = { name: 'TYPE', value: processType }
-    var sk = { name: 'ID', value: processID }
-    if (groups.length == 0) {
-        groups.push('ROOT')
-    }
-    var attributes = []
-    attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
-    attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
-    attributes.push({ name: 'STATUS', type: 'S', value: status })
-    DYNAMO.writeItem('PROCESS_DEFINITION', pk, sk, attributes)
-}
-
-function updateProcessState(processType, processId, newState) {
-    DYNAMO.updateItem('PROCESS_DEFINITION',
-        { name: 'TYPE', value: processType },
-        { name: 'ID', value: processId },
-        [{ name: 'STATUS', type: 'S', value: newState }])
-}
-
-
-
-
-
-
-
-
-
-//PROCESS_GROUP_DEFINITION Table operations
-function writeNewProcessGroup(groupname) {
+/*function writeNewProcessGroup(groupname) {
     var pk = { name: 'NAME', value: groupname }
     var attributes = []
     attributes.push({ name: 'PROCESSES', type: 'SS', value: ['ROOT'] })

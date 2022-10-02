@@ -16,13 +16,14 @@ async function initTables() {
     promises.push(DYNAMO.initTable('ARTIFACT_DEFINITION', 'ARTIFACT_TYPE', 'ARTIFACT_ID'))
     promises.push(DYNAMO.initTable('ARTIFACT_USAGE', 'ARTIFACT_NAME', 'CASE_ID'))
     promises.push(DYNAMO.initTable('ARTIFACT_EVENT', 'ARTIFACT_NAME', 'EVENT_ID'))
+    promises.push(DYNAMO.initTable('STAGE_EVENT', 'PROCESS_NAME', 'EVENT_ID'))
     await Promise.all(promises)
 }
 
 async function deleteTables() {
     var TABLES = [
         'PROCESS_TYPE', 'PROCESS_INSTANCE', 'PROCESS_GROUP_DEFINITION', 'STAKEHOLDERS',
-        'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION'
+        'ARTIFACT_EVENT', 'ARTIFACT_USAGE', 'ARTIFACT_DEFINITION', 'STAGE_EVENT'
     ]
     var promises = []
     TABLES.forEach(element => {
@@ -561,7 +562,7 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
 })
 
 test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost',1883 )
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost', 1883)
     await DB.closeOngoingProcessInstance('dummy1', 'instance-1', 1550)
 
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
@@ -580,7 +581,7 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
     expect(data1).toEqual(expected1)
 
     //With empty arrays
-    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000, [], 'localhost',1883)
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000, [], 'localhost', 1883)
     await DB.closeOngoingProcessInstance('dummy2', 'instance-1', 2560)
     const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
     var expected2 = {
@@ -643,7 +644,7 @@ test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
 })
 
 test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost',1883)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost', 1883)
     await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck1')
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
     var expected1 = {
@@ -787,4 +788,46 @@ test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE A
         processes: ['process-1']
     }
     expect(data3).toEqual(expected3)
+})
+
+test('[writeStageEvent][WRITE AND READ]', async () => {
+    var stageLog1 = {
+        processid: 'dummy/instance-1',
+        eventid: '0001',
+        timestamp: 10001,
+        stagename: 'Stage-1',
+        status: 'onTime',
+        state: 'Opened',
+        compliance: 'Compliant'
+    }
+
+    await DB.writeStageEvent(stageLog1)
+
+    var stageLog2 = {
+        processid: 'dummy/instance-1',
+        eventid: '0002',
+        timestamp: 10003,
+        stagename: 'Stage-2',
+        status: 'onTime',
+        state: 'Opened',
+        compliance: 'Compliant'
+    }
+
+    await DB.writeStageEvent(stageLog2)
+
+    var pk = { name: 'PROCESS_NAME', value: 'dummy/instance-1' }
+    var sk = { name: 'EVENT_ID', value: '0001' }
+    const data = await DYNAMO.readItem('STAGE_EVENT', pk, sk)
+    var expected = {
+        Item: {
+            PROCESS_NAME: { S: 'dummy/instance-1' },
+            EVENT_ID: { S: '0001' },
+            TIMESTAMP: { N: '10001' },
+            STAGE_NAME: { S: 'Stage-1' },
+            STAGE_STATUS: { S: 'onTime' },
+            STAGE_STATE: { S: 'Opened' },
+            STAGE_COMPLIANCE: { S: 'Compliant' }
+        }
+    }
+    expect(data).toEqual(expected)
 })

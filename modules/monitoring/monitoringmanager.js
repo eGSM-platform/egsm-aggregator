@@ -25,6 +25,10 @@ function notifyStakeholder(stakeholderid, notification) {
         if (err) {
             LOG.logSystem('ERROR', `Error while retrieving information about ${stakeholderid}`, module.id)
         }
+        if (data == undefined) {
+            LOG.logSystem('ERROR', `Could not find Stakeholder ${stakeholderid} in database`, module.id)
+            resolve()
+        }
         else {
             var notificationDetailsObj = JSON.parse(data.notificationdetails)
             if (notificationDetailsObj.type == 'mqtt') {
@@ -50,6 +54,10 @@ async function notifyEntities(monitoredProcesses, notificationRules, notificatio
                             if (err) {
                                 LOG.logSystem('ERROR', 'Error while retrieving information about process instance', module.id)
                                 reject()
+                            }
+                            if (data == undefined) {
+                                LOG.logSystem('ERROR', `Could not find process instance ${type}/${instnaceId} in database`, module.id)
+                                resolve()
                             }
                             else {
                                 data.stakeholders.forEach(stakeholder => {
@@ -86,7 +94,7 @@ function Monitoring(type, monitored, notificationRules) {
 
 
     var eventHandler = function (engineid, eventtype, messageObj) {
-        LOG.logSystem('DEBUG',`New event from ${engineid}, type: ${eventtype}`,module.id)
+        LOG.logSystem('DEBUG', `New event from ${engineid}, type: ${eventtype}`, module.id)
         switch (monitoringType) {
             case 'process-execution-deviation-detection':
                 if (eventtype == 'stage') {

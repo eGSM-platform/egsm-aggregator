@@ -5,7 +5,7 @@ var LOG = require('../auxiliary/LogManager')
 var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
-var VALIDATOR = require('./validator')
+var VALIDATOR = require('../validator')
 
 
 module.id = "AUTOCONFIG"
@@ -151,13 +151,14 @@ function applyMonitoringConfig(config) {
             DDB.readProcessGroup(group).then((data, err) => {
                 if (err || data == undefined) {
                     LOG.logSystem('ERROR', `Could not read ${group} from database`, module.id)
-                    return
                 }
-                data.processes.forEach(process => {
-                    if (!monitoredProcesses.has(process)) {
-                        monitoredProcesses.add(process)
-                    }
-                })
+                else {
+                    data.processes.forEach(process => {
+                        if (!monitoredProcesses.has(process)) {
+                            monitoredProcesses.add(process)
+                        }
+                    })
+                }
             })
         });
         memberProcesses.forEach(process => {

@@ -4,6 +4,8 @@ var LOG = require('../auxiliary/LogManager')
 var MQTT = require('../communication/mqttconnector')
 var DYNAMO = require('../database/dynamoconnector')
 var DB = require('../database/databaseconnector')
+var VALIDATOR = require('../validator')
+
 module.id = "ENGINE_OBSERVER"
 
 var eventEmitter = new events.EventEmitter();
@@ -25,7 +27,13 @@ function onMessageReceived(hostname, port, topic, message) {
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
     var elements = topic.split('/')
     var engineid = elements[0] + '/' + elements[1]//Engine id is the first two parts of the topic
-    var msgJson = JSON.parse(message.toString())
+
+    try {
+        var msgJson = JSON.parse(message.toString())
+    } catch (error) {
+        LOG.logWorker('ERROR', `Error while parsing JSON message (${error})`, module.id)
+        return
+    }
 
     //Performing Database operations
     if (ENGINES.has(engineid)) {
@@ -36,22 +44,22 @@ function onMessageReceived(hostname, port, topic, message) {
                 var eventid = STAGE_EVENT_ID.get(engineid) + 1
                 STAGE_EVENT_ID.set(engineid, eventid)
 
-
-                if (msgJson.processid == undefined || msgJson.stagename == undefined || msgJson.timestamp == undefined ||
-                    msgJson.status == undefined || msgJson.state == undefined || msgJson.compliance == undefined) {
+                if (!VALIDATOR.validateStageLogMessage(msgJson)) {
                     LOG.logWorker('WARNING', `Data is missing to write StageEvent log`, module.id)
                     return
                 }
 
-                var processid = msgJson.processid
-                var stagename = msgJson.stagename
-                var timestamp = msgJson.timestamp
-                var status = msgJson.status
-                var state = msgJson.state
-                var compliance = msgJson.compliance
-
-                //TODO: add database writing
-                //DB.writeStageEvent(engineid, stagename, eventid, details, timestamp)
+                var stageLog = {
+                    processid: msgJson.processid,
+                    eventid: 'event_' + eventid.toString(),
+                    timestamp: msgJson.timestamp,
+                    stagename: msgJson.stagename,
+                    status: msgJson.status,
+                    state: msgJson.state,
+                    compliance: msgJson.compliance
+                }
+                
+                DB.writeStageEvent(stageLog)
 
                 //Notify core
                 eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
@@ -61,8 +69,7 @@ function onMessageReceived(hostname, port, topic, message) {
                 var eventid = ARTIFACT_EVENT_ID.get(engineid) + 1
                 ARTIFACT_EVENT_ID.set(engineid, eventid)
 
-                if (msgJson.timestamp == undefined || msgJson.artifact_name == undefined || msgJson.artifact_state == undefined ||
-                    msgJson.process_type == undefined || msgJson.process_id == undefined) {
+                if (!VALIDATOR.validateArtifactLogMessage(msgJson)) {
                     LOG.logWorker('WARNING', `Data is missing to write ArtifactEvent log`, module.id)
                     return
                 }
@@ -106,8 +113,8 @@ async function addEngine(engineid) {
         var elements = engineid.split('/')
         var type = elements[0]
         var instanceid = elements[1]
-        var retrieved = await DB.readProcessInstance(type,instanceid)
-        if(retrieved == undefined){
+        var retrieved = await DB.readProcessInstance(type, instanceid)
+        if (retrieved == undefined) {
             LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
             return
         }
