@@ -317,6 +317,7 @@ async function writeNewProcessInstance(processtype, instanceid, stakeholders, gr
     attributes.push({ name: 'STATUS', type: 'S', value: 'ongoing' })
     attributes.push({ name: 'HOST', type: 'S', value: host })
     attributes.push({ name: 'PORT', type: 'N', value: port.toString() })
+    attributes.push({ name: 'OUTCOME', type: 'S', value: 'NA' })
     return DYNAMO.writeItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
@@ -339,6 +340,7 @@ async function readProcessInstance(processtype, instanceid) {
             attached: [],
             host: data['Item']?.HOST?.S || 'localhost',
             port: Number(data['Item']?.PORT?.N) || 1883,
+            outcome: data['Item']?.OUTCOME?.S
         }
     }
     var attachedbuff = data['Item']?.ATTACHED_TO?.L || []
@@ -397,12 +399,13 @@ async function deattachArtifactFromProcessInstance(processtype, instanceid, arti
     return DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
-async function closeOngoingProcessInstance(processtype, instanceid, endtime) {
+async function closeOngoingProcessInstance(processtype, instanceid, endtime, outcome) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
     var attributes = []
     attributes.push({ name: 'ENDING_TIME', type: 'N', value: endtime.toString() })
     attributes.push({ name: 'STATUS', type: 'S', value: 'finished' })
+    attributes.push({ name: 'OUTCOME', type: 'S', value: outcome })
     await DYNAMO.updateItem('PROCESS_INSTANCE', pk, sk, attributes)
 }
 
