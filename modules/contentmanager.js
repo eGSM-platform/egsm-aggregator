@@ -21,7 +21,7 @@ async function defineProcessType(processtype, egsm_info, egsm_model, bpmn_model)
     })
 }
 
-async function defineAndStartProcessInstance(processtype, instanceid, stakeholders, groups, host, port) {
+async function defineAndStartProcessInstance(processtype, instanceid, stakeholders, host, port) {
     var existingProcess = DDB.readProcessInstance(processtype, instanceid)
     var existingProcessType = DDB.readProcessType(processtype)
     var value = await Promise.all([existingProcess, existingProcessType])
@@ -35,7 +35,7 @@ async function defineAndStartProcessInstance(processtype, instanceid, stakeholde
     }
 
     var startingTime = Math.floor(new Date().getTime() / 1000)
-    await DDB.writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingTime, [], host, port).then((data, err) => {
+    await DDB.writeNewProcessInstance(processtype, instanceid, stakeholders, startingTime, [], host, port).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Error while adding process ${processtype}/${instanceid}`, module.id)
             return false

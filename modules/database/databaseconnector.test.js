@@ -538,7 +538,7 @@ test('[readProcessType][WRITE AND READ]', async () => {
 })
 
 test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, ['truck/instance-1'], 'localhost', 1883)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], 1000, ['truck/instance-1'], 'localhost', 1883)
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
     var expected1 = {
         processtype: 'dummy1',
@@ -547,7 +547,6 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: ['truck/instance-1'],
         host: 'localhost',
         port: 1883,
@@ -556,7 +555,7 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
     expect(data1).toEqual(expected1)
 
     //With empty arrays
-    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000, [], '192.168.0.1', 1885)
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], 1000, [], '192.168.0.1', 1885)
     const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
     var expected2 = {
         processtype: 'dummy2',
@@ -565,7 +564,6 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
         endingtime: -1,
         status: 'ongoing',
         stakeholders: [],
-        groups: [],
         attached: [],
         host: '192.168.0.1',
         port: 1885,
@@ -580,7 +578,7 @@ test('[writeNewProcessInstance][readProcessInstance][WRITE AND READ]', async () 
 })
 
 test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], 1000, [], 'localhost', 1883)
     await DB.closeOngoingProcessInstance('dummy1', 'instance-1', 1550, 'success')
 
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
@@ -591,7 +589,6 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
         endingtime: 1550,
         status: 'finished',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: [],
         host: 'localhost',
         port: 1883,
@@ -600,7 +597,7 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
     expect(data1).toEqual(expected1)
 
     //With empty arrays
-    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], [], 1000, [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('dummy2', 'instance-1', [], 1000, [], 'localhost', 1883)
     await DB.closeOngoingProcessInstance('dummy2', 'instance-1', 2560, 'failure')
     const data2 = await DB.readProcessInstance('dummy2', 'instance-1')
     var expected2 = {
@@ -610,7 +607,6 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
         endingtime: 2560,
         status: 'finished',
         stakeholders: [],
-        groups: [],
         attached: [],
         host: 'localhost',
         port: 1883,
@@ -623,7 +619,7 @@ test('[closeOngoingProcessInstance][WRITE AND READ]', async () => {
 })
 
 test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'],  1000, [], 'localhost', 1883)
     await DB.attachArtifactToProcessInstance('dummy1', 'instance-1', 'truck/instance-1')
 
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
@@ -634,7 +630,6 @@ test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: ['truck/instance-1'],
         host: 'localhost',
         port: 1883,
@@ -652,7 +647,6 @@ test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: ['truck/instance-1', 'truck/instance-2'],
         host: 'localhost',
         port: 1883,
@@ -666,7 +660,7 @@ test('[attachArtifactToProcessInstance][WRITE AND READ]', async () => {
 })
 
 test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
-    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], ['group1', 'group2'], 1000, [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('dummy1', 'instance-1', ['stakeholder1', 'stakeholder2', 'stakeholder3'], 1000, [], 'localhost', 1883)
     await DB.deattachArtifactFromProcessInstance('dummy1', 'instance-1', 'truck1')
     const data1 = await DB.readProcessInstance('dummy1', 'instance-1')
     var expected1 = {
@@ -676,7 +670,6 @@ test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: [],
         host: 'localhost',
         port: 1883,
@@ -695,7 +688,6 @@ test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: ['truck/instance-1', 'truck/instance-2'],
         host: 'localhost',
         port: 1883,
@@ -712,7 +704,6 @@ test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: ['truck/instance-2'],
         host: 'localhost',
         port: 1883,
@@ -733,7 +724,6 @@ test('[deattachArtifactFromProcessInstance][WRITE AND READ]', async () => {
         endingtime: -1,
         status: 'ongoing',
         stakeholders: ['stakeholder1', 'stakeholder2', 'stakeholder3'],
-        groups: ['group1', 'group2'],
         attached: [],
         host: 'localhost',
         port: 1883,

@@ -294,16 +294,16 @@ async function readProcessType(proccesstype) {
 //Function to create a new process instance
 //Process instance status is automatically set to 'ongoing'
 //Status can be changed and end time can be added by closeOngoingProcessInstance function 
-async function writeNewProcessInstance(processtype, instanceid, stakeholders, groups, startingtime, attached, host, port) {
+async function writeNewProcessInstance(processtype, instanceid, stakeholders, startingtime, attached, host, port) {
     var pk = { name: 'PROCESS_TYPE_NAME', value: processtype }
     var sk = { name: 'INSTANCE_ID', value: instanceid }
     var attributes = []
     if (stakeholders && stakeholders.length > 0) {
         attributes.push({ name: 'STAKEHOLDERS', type: 'SS', value: stakeholders })
     }
-    if (groups && groups.length > 0) {
+    /*if (groups && groups.length > 0) {
         attributes.push({ name: 'GROUPS', type: 'SS', value: groups })
-    }
+    }*/
     var attachedbuff = []
     if (attached) {
         attached.forEach(element => {
@@ -336,7 +336,7 @@ async function readProcessInstance(processtype, instanceid) {
             endingtime: Number(data['Item']['ENDING_TIME']['N']),
             status: data['Item']['STATUS']['S'],
             stakeholders: data['Item']?.STAKEHOLDERS?.SS || [],
-            groups: data['Item']?.GROUPS?.SS || [],
+            //groups: data['Item']?.GROUPS?.SS || [],
             attached: [],
             host: data['Item']?.HOST?.S || 'localhost',
             port: Number(data['Item']?.PORT?.N) || 1883,
