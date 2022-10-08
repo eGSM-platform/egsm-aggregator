@@ -1,0 +1,23 @@
+<content>
+    <!-- Defining Process groups which can be used later to specify monitoring tasks
+    The two main types of groups are: static and dynamic
+    -static: The members are defined at the time of instantiation, no further process adding or removing is possible
+    -dynamic: The members are not defined at the time of instantiation, only membership rules are defined and the update
+    of memberships will be updated in runtime-->
+    <process-group>
+        <type>static</type>
+        <name>group-1</name>
+        <process-instance>DummyProcess/1</process-instance>
+        <process-instance>DummyProcess/2</process-instance>
+        <process-instance>DummyProcess/3</process-instance>
+    </process-group>
+
+    <process-group>
+        <type>dynamic</type>
+        <name>group-2</name>
+        <membership-rules>
+            <stakeholder>Truck Company</stakeholder>
+            <process-type>DummyProcess</process-type>
+        </membership-rules>
+    </process-group>
+</content>

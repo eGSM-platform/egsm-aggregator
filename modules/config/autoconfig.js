@@ -6,10 +6,16 @@ var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
 var VALIDATOR = require('../validator')
+var GROUPMAN = require('../monitoring/groupmanager')
 
 
 module.id = "AUTOC"
 
+/**
+ * Parses an XML string
+ * @param {string} config Config input 
+ * @returns The parsed XML file
+ */
 function parseConfigFile(config) {
     var final
     try {
@@ -26,6 +32,11 @@ function parseConfigFile(config) {
     return final
 }
 
+/**
+ * Helper function to parse a notification method(s) of a stakeholder
+ * @param {NotificationMethod} method Input object
+ * @returns 
+ */
 function parseNotificationMethod(method) {
     var result = {}
     var type = method['type'][0]
@@ -41,7 +52,11 @@ function parseNotificationMethod(method) {
     return result
 }
 
-//Creates the defined entities in the provided config file in the connected Database
+
+/**
+ * Creates entities in the database defined in the config
+ * @param {Parsed Config File} config Parsed XML object containing the necessary information 
+ */
 function applyContentConfig(config) {
     //Adding Stakeholders
     var stakeholders = config['content']?.['stakeholder'] || []
@@ -76,6 +91,10 @@ function applyContentConfig(config) {
     });
 }
 
+/**
+ * Creates the process types in the database defined in the config
+ * @param {*} config Parsed XML config file
+ */
 function applyProcessTypeConfig(config) {
     var processes = config['content']?.processtype || []
 
@@ -95,6 +114,30 @@ function applyProcessTypeConfig(config) {
     })
 }
 
+/**
+ * Creates the process groups in the database defined in the config
+ * @param {*} config Parsed XML config file
+ */
+function applyProcessGroupConfig(config) {
+    var groups = config['content']?.['process-group'] || []
+    groups.forEach(element => {
+        var type = element?.['type'] || 'static'
+        if (type != 'static') {
+            var stakeholderrule = element?.['membership-rules']?.['stakeholder'] || undefined
+            var processtyperule = element?.['membership-rules']?.['process-type'] || undefined
+        }
+        var processes = element?.['process-instance'] || []
+
+        if (!CONTENTMANAGER.defineProcessGroup(element['name'][0], processes, type, stakeholderrule, processtyperule)) {
+            throw Error(`Could not define process group ${element['name'][0]}`)
+        }
+    });
+}
+
+/**
+ * Creates the process instances in the database defined in the config file
+ * @param {*} config Parsed XML config file
+ */
 function applyProcessInstnaceConfig(config) {
     //Adding process instances
     var processes = config['content']?.['process-instance'] || []
@@ -107,36 +150,16 @@ function applyProcessInstnaceConfig(config) {
             var instance = element['instance-id'][0]
             var host = element['host'][0]
             var port = element['port'][0]
-            var stakeholdersRaw = element?.['stakeholders'] || []
+            var stakeholders = element?.['stakeholders'] || []
             var stakeholders = []
 
-            stakeholdersRaw.forEach(element => {
-                stakeholders.push(element)
-            })
-            var groupsRaw = element?.['group'] || []
-            var groups = []
-            groupsRaw.forEach(element => {
-                groups.push(element)
-            })
-            if (!CONTENTMANAGER.defineAndStartProcessInstance(type, instance, stakeholders, groups, host, port)) {
+            if (!CONTENTMANAGER.defineAndStartProcessInstance(type, instance, stakeholders, host, port)) {
                 throw Error(`Could not define process instance  ${type}/${instance}`)
             }
+            //notify GroupMan about the new process
+            GROUPMAN.addProcessInstanceDynamic(type, instance, stakeholders)
         }
     })
-
-    //Adding Process groups
-    var groups = config['content']?.['process-group'] || []
-    groups.forEach(element => {
-        if (!CONTENTMANAGER.defineProcessGroup(element['name'][0])) {
-            throw Error(`Could not define process group ${element['name'][0]}`)
-        }
-        var processes = element?.['process-instance'] || []
-        processes.forEach(element2 => {
-            if (!CONTENTMANAGER.addProcessToProcessGroup(element['name'][0], element2)) {
-                throw Error(`Could not define process group ${element['name'][0]}`)
-            }
-        });
-    });
 }
 
 function applyMonitoringConfig(config) {
@@ -190,11 +213,13 @@ function executeConfig(type, config) {
     else if (type == '--process_instance_config') {
         applyProcessInstnaceConfig(configParsed)
     }
+    else if (type == '--process_group_config') {
+        applyProcessGroupConfig(configParsed)
+    }
     else if (type == '--monitoring_config') {
         applyMonitoringConfig(configParsed)
     }
 }
-
 
 module.exports = {
     applyContentConfig: applyContentConfig,

@@ -1,164 +1,156 @@
 var UUID = require('uuid');
 
-var DDB = require("../database/databaseconnector")
 var LOG = require('../auxiliary/LogManager')
 var OBSERVER = require('./engineobserver');
-var MQTT = require('../communication/mqttconnector')
+var NOTIFMAN = require('../communication/notificationmanager')
+var GROUPMAN = require('./groupmanager')
 
-module.id = "MONITORING_MANAGER"
+//Importing monitoring types
+var PDD = require('./monitoringtypes/process-deviation-detection')
 
+module.id = "MONITORMAN"
+
+/**
+ * Map containing all Monitoring activities. Keys are the monitoring ID-s, values are the Monitoring objects
+ */
 var MONITORING_ACTIVITIES = new Map();
 
-function evaluateStageEvent(eventDetails) {
-    var errors = []
-    if (eventDetails.status == 'faulty') {
-        errors.push(eventDetails.outcome)
-    }
-    if (eventDetails.compliance != 'onTime') {
-        errors.push(eventDetails.compliance)
-    }
-    return errors
-}
-
-function notifyStakeholder(stakeholderid, notification) {
-    DDB.readStakeholder(stakeholderid).then((data, err) => {
-        if (err) {
-            LOG.logSystem('ERROR', `Error while retrieving information about ${stakeholderid}`, module.id)
-        }
-        if (data == undefined) {
-            LOG.logSystem('ERROR', `Could not find Stakeholder ${stakeholderid} in database`, module.id)
-            resolve()
-        }
-        else {
-            var notificationDetailsObj = JSON.parse(data.notificationdetails)
-            if (notificationDetailsObj.type == 'mqtt') {
-                MQTT.publishTopic(notificationDetailsObj.host, notificationDetailsObj.port, notificationDetailsObj.topic, notification)
-            }
-            //TODO: Update if other notification methods are available
-        }
-    })
-}
-
-async function notifyEntities(monitoredProcesses, notificationRules, notification) {
-    var notifiedEntities = new Set() //Set containeng the entities should be notified
-    var promises = []
-    notificationRules.forEach(rule => {
-        switch (rule) {
-            case 'PROCESS_OWNERS':
-                monitoredProcesses.forEach(process => {
-                    var nameElements = process.split('/')
-                    var type = nameElements[0]
-                    var instnaceId = nameElements[1]
-                    promises.push(new Promise((resolve, reject) => {
-                        DDB.readProcessInstance(type, instnaceId).then((data, err) => {
-                            if (err) {
-                                LOG.logSystem('ERROR', 'Error while retrieving information about process instance', module.id)
-                                reject()
-                            }
-                            if (data == undefined) {
-                                LOG.logSystem('ERROR', `Could not find process instance ${type}/${instnaceId} in database`, module.id)
-                                resolve()
-                            }
-                            else {
-                                data.stakeholders.forEach(stakeholder => {
-                                    if (!notifiedEntities.has(stakeholder)) {
-                                        notifiedEntities.add(stakeholder)
-                                    }
-                                });
-                                resolve()
-                            }
-                        })
-                    }))
-                });
-                break;
-            case 'ARTIFACT_OWNERS':
-                //TODO
-                break;
-            case 'ATTACHED_ARTIFACT_USERS':
-                //TODO
-                break;
-        }
-    });
-    await Promise.all(promises)
-    promises = []
-    notifiedEntities.forEach(entity => {
-        notifyStakeholder(entity, notification)
-    });
-}
-
-function Monitoring(type, monitored, notificationRules) {
-    //var monitoringID = id
+/**
+ * Contructs a new Monitoring Activity
+ * @param {string} id Monitoring ID
+ * @param {string} type Monitoring type (see imported monitoring type at the top of the file)
+ * @param {string array} groups Array of monitored process instance groups 
+ * @param {string array} notificationRules Array containig the notification rules 
+ * @returns 
+ */
+async function Monitoring(id, type, groups, notificationRules) {
+    var monitoringid = id
     var monitoringType = type
-    var monitoredProcesses = monitored
+    var monitoredGroups = groups //Dynamic and static groups
     var notificationRules = notificationRules
+    var monitoredProcesses = new Set()
 
+    //Registering all engines to the monitoring which are currently included in the process groups
+    //Due to dynamic groups the list of process instances can change in runtime
+    monitoredGroups.forEach(element => {
+        //Get process group from the database
+        GROUPMAN.getGroupMemberProcesses(element).then((data, err) => {
+            if (data.length > 0) {
+                data.forEach(process => {
+                    addEngine(process)
+                });
+            }
+        })
+    });
 
-    var eventHandler = function (engineid, eventtype, messageObj) {
+    /**
+     * Adding a new engine to the Monitoring activity
+     * @param {string} engineid ID of the engine should be addecd to the activity
+     */
+    var addEngine = function (engineid) {
+        monitoredProcesses.set(engineid)
+        switch (monitoringType) {
+            case 'process-execution-deviation-detection':
+                OBSERVER.eventEmitter.on(engineid + '/stage_log', processEventHandler)
+                break;
+            case 'artifact-failure-rate-warning':
+                OBSERVER.eventEmitter.on(engineid + '/artifact_log', processEventHandler)
+                break;
+        }
+        OBSERVER.addEngine(engineid)
+    }
+
+    /**
+     * Removing an engine from the Monitoring activity 
+     * @param {string} engineid ID of the engine should be removed from the activity
+     */
+    var removeEngine = function (engineid) {
+        monitoredProcesses.delete(engineid)
+        switch (monitoringType) {
+            case 'process-execution-deviation-detection':
+                OBSERVER.eventEmitter.removeListener(engineid + '/stage_log', processEventHandler)
+                break;
+            case 'artifact-failure-rate-warning':
+                OBSERVER.eventEmitter.removeListener(engineid + '/artifact_log', processEventHandler)
+                break;
+        }
+        OBSERVER.removeEngine(engineid)
+    }
+
+    /**
+     * Responsible EventHandler function of the Monitroing Activity
+     * @param {string} engineid Id of the engine the event coming from
+     * @param {string} eventtype Type of event (stage/artifact/custom)
+     * @param {parsed JSON} messageObj Parsed JSon containig all data fields reveived from the process instance
+     */
+    var processEventHandler = function (engineid, eventtype, messageObj) {
         LOG.logSystem('DEBUG', `New event from ${engineid}, type: ${eventtype}`, module.id)
+        var errors = []
         switch (monitoringType) {
             case 'process-execution-deviation-detection':
                 if (eventtype == 'stage') {
-                    var errors = evaluateStageEvent(messageObj)
-                    if (errors.length != 0) {
-                        var notificationObj = {
-                            processid: messageObj.processid,
-                            stage: messageObj.stagename,
-                            error: errors,
-                            timestamp: messageObj.timestamp,
-                            engine: engineid,
-                            process: {
-                                status: messageObj.status,
-                                outcome: messageObj.outcome,
-                                compliance: messageObj.compliance
-                            }
-                        }
-                        notifyEntities(monitoredProcesses, notificationRules, JSON.stringify(notificationObj))
-                    }
+                    errors = PDD.evaluateStageEvent(messageObj)
                 }
                 break;
             case 'artifact-failure-rate-warning':
 
                 break;
         }
+        if (errors.length != 0) {
+            var notificationObj = {
+                monitoringid: monitoringid,
+                processid: messageObj.processid,
+                stage: messageObj.stagename,
+                error: errors,
+                timestamp: messageObj.timestamp,
+                engine: engineid,
+                process: {
+                    status: messageObj.status,
+                    outcome: messageObj.outcome,
+                    compliance: messageObj.compliance
+                }
+            }
+            NOTIFMAN.notifyEntities(monitoredProcesses, notificationRules, JSON.stringify(notificationObj))
+        }
     }
 
-
-    //Subscribe to the necessary events based on the type of the monitoring
-    monitoredProcesses.forEach(element => {
-        switch (monitoringType) {
-            case 'process-execution-deviation-detection':
-                OBSERVER.eventEmitter.on(element + '/stage_log', eventHandler)
+    var groupmanEventHandler = function (eventtype, engineid) {
+        switch (eventtype) {
+            case 'added':
+                addEngine(engineid)
                 break;
-            case 'artifact-failure-rate-warning':
-                OBSERVER.eventEmitter.on(element + '/stage_log', eventHandler)
+            case 'removed':
+                removeEngine(engineid)
                 break;
         }
-    });
-    //Add the member engines (processes) to the EngineObserver module
-    monitoredProcesses.forEach(element => {
-        OBSERVER.addEngine(element)
-    });
+    }
 
     return {
-
+        //processEventHandler: processEventHandler,
+        addEngine: addEngine,
+        removeEngine: removeEngine
     }
 }
 
-
-function startMonitoringActivity(type, monitored, notificationRules, id) {
+/**
+ * Function to add a new Monitroing activity to the module
+ * @param {string} type Type of the monitoring
+ * @param {string array} groups Array of monitored process instance groups
+ * @param {string array} notificationRules Array of notification rules has to applied to the monitoring
+ * @param {(optional) string} id ID of the Monitoring activity. If not provided a random value will be generated
+ * @returns True if the Monitoring activity has been created, false otherwise
+ */
+function startMonitoringActivity(type, groups, notificationRules, id) {
     if (id == undefined) {
         id = UUID.v4()
     }
     if (MONITORING_ACTIVITIES.has(id)) {
         LOG.logSystem('WARNING', `Activity already exists with id ${id}, cannot be add again`)
-        return
+        return false
     }
-    MONITORING_ACTIVITIES.set(id, new Monitoring(type, monitored, notificationRules))
+    MONITORING_ACTIVITIES.set(id, new Monitoring(id, type, groups, notificationRules))
+    return true
 }
-
-
-
-
 
 module.exports = {
     //Creates and starts a new monitoring activity based on the provided config file 

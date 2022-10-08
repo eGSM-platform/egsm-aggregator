@@ -161,7 +161,7 @@ async function readUnprocessedArtifactEvents(artifactName) {
         }
         result = await DYNAMO.query('ARTIFACT_EVENT', keyexpression, expressionattributevalues, undefined, undefined, 'PROCESSED_INDEX')
     }
-    else{
+    else {
         var keyexpression = 'ARTIFACT_NAME = :a'
         var expressionattributevalues = {
             ':a': { S: artifactName },
@@ -431,15 +431,23 @@ async function readStakeholder(stakeholderid) {
 }
 
 //PROCESS GROUP operations
-async function writeNewProcessGroup(processgroupid, memberprocesses) {
+async function writeNewProcessGroup(processgroupid, memberprocesses, type, stakeholderrule, processtyperule) {
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
     if (memberprocesses && memberprocesses.length > 0) {
         var buffer = []
         for (var i = 0; i < memberprocesses.length; i++) {
-            buffer.push(memberprocesses[i])
+            buffer.push({ S: memberprocesses[i] })
         }
-        attributes.push({ name: 'PROCESSES', type: 'SS', value: buffer })
+        attributes.push({ name: 'PROCESSES', type: 'L', value: buffer })
+    }
+    if (type == undefined || type == 'static') {
+        attributes.push({ name: 'TYPE', type: 'S', value: 'static' })
+    }
+    else {
+        attributes.push({ name: 'TYPE', type: 'S', value: type })
+        attributes.push({ name: 'STAKEHOLDER_RULE', type: 'S', value: stakeholderrule })
+        attributes.push({ name: 'PROCESS_TYPE_RULE', type: 'S', value: processtyperule })
     }
     return await DYNAMO.writeItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
 }
@@ -451,12 +459,17 @@ async function readProcessGroup(processgroupid) {
     if (data['Item']) {
         final = {
             name: data['Item']['NAME']['S'],
-            processes: [],
+            type: data['Item']['TYPE']['S'],
+            processes: []
         }
-        var processesBuff = data['Item']?.PROCESSES?.SS
+        if (final.type != 'static') {
+            final['stakeholder_rule'] = data['Item']?.STAKEHOLDER_RULE?.S || undefined
+            final['process_type_rule'] = data['Item']?.PROCESS_TYPE_RULE?.S || undefined
+        }
+        var processesBuff = data['Item']?.PROCESSES?.L
         if (processesBuff) {
             processesBuff.forEach(element => {
-                final.processes.push(element)
+                final.processes.push(element.S)
             });
         }
     }
@@ -474,11 +487,70 @@ async function addProcessToProcessGroup(processgroupid, newprocessid) {
     if (!oldarray.includes(newprocessid)) {
         oldarray.push(newprocessid)
     }
+    var newArray = []
+    oldarray.forEach(element => {
+        newArray.push({ S: element })
+    });
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
-    attributes.push({ name: 'PROCESSES', type: 'SS', value: oldarray })
+    attributes.push({ name: 'PROCESSES', type: 'L', value: newArray })
     const data = await DYNAMO.updateItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
     return data
+}
+
+async function removeProcessFromProcessGroup(processgroupid, processid) {
+    const reading = await readProcessGroup(processgroupid)
+    if (reading == undefined) {
+        LOG.logSystem("WARNING", `Group not found ${processgroupid}`, module.id)
+        return
+    }
+
+    //If the group is already defined
+    var oldarray = reading?.processes || []
+    if (oldarray.indexOf(processid) != -1) {
+        var index = oldarray.indexOf(processid)
+        oldarray.splice(index, 1)
+    }
+
+    var newArray = []
+    oldarray.forEach(element => {
+        newArray.push({ S: element })
+    });
+    var pk = { name: 'NAME', value: processgroupid }
+    var attributes = []
+    attributes.push({ name: 'PROCESSES', type: 'L', value: newArray })
+    const data = await DYNAMO.updateItem('PROCESS_GROUP_DEFINITION', pk, undefined, attributes)
+    return data
+}
+
+async function readProcessGroupByRules(stakeholderrule, processtyperule) {
+    var keyexpression = 'STAKEHOLDER_RULE = :a'
+    var expressionattributevalues = {
+        ':a': { S: stakeholderrule },
+        // ':b': { S: processtyperule },
+    }
+    if (processtyperule != undefined) {
+        keyexpression += ' AND PROCESS_TYPE_RULE = :b'
+        expressionattributevalues[':b'] = { S: processtyperule }
+    }
+    result = await DYNAMO.query('PROCESS_GROUP_DEFINITION', keyexpression, expressionattributevalues, undefined, undefined, 'RULE_INDEX')
+    var final = []
+    result.forEach(element => {
+        final.push({
+            name: element.NAME.S,
+            type: element.TYPE.S,
+            processes: [],//element.ARTIFACT_STATE.S,
+            stakeholder_rule: element?.STAKEHOLDER_RULE?.S || undefined,
+            process_type_rule: element?.PROCESS_TYPE_RULE?.S || undefined,
+        })
+        var processesBuff = element?.PROCESSES?.SS
+        if (processesBuff) {
+            processesBuff.forEach(element => {
+                final.processes.push(element)
+            });
+        }
+    });
+    return final
 }
 
 //STAGE EVENTS
@@ -590,6 +662,8 @@ module.exports = {
     writeNewProcessGroup: writeNewProcessGroup,
     readProcessGroup: readProcessGroup,
     addProcessToProcessGroup: addProcessToProcessGroup,
+    removeProcessFromProcessGroup: removeProcessFromProcessGroup,
+    readProcessGroupByRules: readProcessGroupByRules,
 
     writeStageEvent: writeStageEvent,
 }

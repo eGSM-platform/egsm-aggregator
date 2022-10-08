@@ -10,7 +10,7 @@ var tables = [
     { name: 'PROCESS_TYPE', pk: 'PROCESS_TYPE_NAME', sk: undefined },
     { name: 'STAKEHOLDERS', pk: 'STAKEHOLDER_ID', sk: undefined },
     { name: 'PROCESS_INSTANCE', pk: 'PROCESS_TYPE_NAME', sk: 'INSTANCE_ID' },
-    { name: 'PROCESS_GROUP_DEFINITION', pk: 'NAME', sk: undefined },
+    { name: 'PROCESS_GROUP_DEFINITION', pk: 'NAME', sk: undefined, secondaryindex: { indexname: 'RULE_INDEX', pk: { name: 'STAKEHOLDER_RULE', type: 'S' }, sk: { name: 'PROCESS_TYPE_RULE', type: 'S' } } },
 
     { name: 'STAGE_EVENT', pk: 'PROCESS_NAME', sk: 'EVENT_ID' },
 ]

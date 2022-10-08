@@ -1,32 +1,33 @@
 var LOG = require('../auxiliary/LogManager')
 var MQTT = require('./mqttconnector')
-var DB = require('../database/databaseconnector')
+var DDB = require('../database/databaseconnector')
 
 module.id = 'STAKEHOLDER_CONN'
 
-function notifyStakeholder(stakeholderid)
-{
-    DB.readStakeholder(stakeholderid).then((data,err)=>{
-        if(err){
-
+/**
+ * Sends a notification to a Stakeholder
+ * @param {string} stakeholderid - The ID of a Stakeholder, which in advance needs to be registered into the database, with the desired notification method and notification credentials  
+ * @param {string} notification - The notification payload itself. Technically can be any string, however JSON string is highly desired
+ */
+ function notifyStakeholder(stakeholderid, notification) {
+    DDB.readStakeholder(stakeholderid).then((data, err) => {
+        if (err) {
+            LOG.logSystem('ERROR', `Error while retrieving information about ${stakeholderid}`, module.id)
         }
-        else{
-            if(data.type == 'mqtt'){
-                MQTT.publishTopic()
+        if (data == undefined) {
+            LOG.logSystem('ERROR', `Could not find Stakeholder ${stakeholderid} in database`, module.id)
+            resolve()
+        }
+        else {
+            var notificationDetailsObj = JSON.parse(data.notificationdetails)
+            if (notificationDetailsObj.type == 'mqtt') {
+                MQTT.publishTopic(notificationDetailsObj.host, notificationDetailsObj.port, notificationDetailsObj.topic, notification)
             }
+            //TODO: Update if other notification methods are available
         }
     })
 }
 
-function initStakeholderConnection(stakeholderid){
-    DB.readStakeholder(stakeholderid).then((data,err)=>{
-        if(err){
-
-        }
-        else{
-            if(data.type == 'mqtt'){
-                MQTT.
-            }
-        }
-    })
+module.exports = {
+    notifyStakeholder:notifyStakeholder
 }

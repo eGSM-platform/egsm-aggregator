@@ -18,7 +18,7 @@
             even if those processes are NOT IN THIS PROCES GROUP -->
         <notified>ATTACHED_ARTIFACT_USERS</notified>
     </process-monitoring>
-
+Add processes by Stakeholder A creates a Dummy process type instance
     <process-monitoring>
         <!--Triggers if the failure rate of any of the attached artifacts from the specified type
             is above a predefined value -->

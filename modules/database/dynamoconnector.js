@@ -55,6 +55,12 @@ async function initTable(tablename, pk, sk, globalsecondaryIndex) {
             AttributeName: globalsecondaryIndex.pk.name,
             AttributeType: globalsecondaryIndex.pk?.type || 'S'
         })
+        if (globalsecondaryIndex?.sk != undefined) {
+            params.AttributeDefinitions.push({
+                AttributeName: globalsecondaryIndex.sk.name,
+                AttributeType: globalsecondaryIndex.sk?.type || 'S'
+            })
+        }
         params.GlobalSecondaryIndexes = [{
             IndexName: globalsecondaryIndex.indexname,
             KeySchema: [
@@ -69,6 +75,9 @@ async function initTable(tablename, pk, sk, globalsecondaryIndex) {
                 WriteCapacityUnits: 10
             }
         }]
+        if (globalsecondaryIndex?.sk != undefined) {
+            params.GlobalSecondaryIndexes[0].KeySchema.push({ AttributeName: globalsecondaryIndex.sk.name, KeyType: "RANGE" })//Sort key
+        }
     }
     if (sk != undefined) {
         params.AttributeDefinitions.push(
@@ -352,7 +361,7 @@ async function query(tablename, keyconditionexpression, expressionattributevalue
             FilterExpression: filterexpression,
             ProjectionExpression: projectionexpression
         }
-        if(secondaryindex != undefined){
+        if (secondaryindex != undefined) {
             params['IndexName'] = secondaryindex
         }
         result = await DDB.query(params).promise();

@@ -2,26 +2,25 @@ var events = require('events');
 
 var LOG = require('../auxiliary/LogManager')
 var MQTT = require('../communication/mqttconnector')
-var DYNAMO = require('../database/dynamoconnector')
 var DB = require('../database/databaseconnector')
 var VALIDATOR = require('../validator')
 
-module.id = "OBSV"
+module.id = "OBSV" 
 
 var eventEmitter = new events.EventEmitter();
 
 //Map to store default MQTT broker of each engine instances
+/**
+ * Map to store default MQTT broker of each engine instances, 
+ * furthermore a counter indicates how many monitoring activity is using the engine
+ * This value is used to avoid unnecessary MQTT subscription function calls and to 
+ * remove the engine fromthis map only when no activity left subcribed to its topics
+ */
 var ENGINES = new Map()
+
 //Data structures to calculate event ID-s
 var STAGE_EVENT_ID = new Map()
 var ARTIFACT_EVENT_ID = new Map()
-
-//function verifyStageState(status, compliance) {
-//    if (status == 'faulty' || compliance == 'outOfOrder' || compliance == 'skipped') {
-//        return false
-//    }
-//    return true
-//}
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
@@ -121,7 +120,7 @@ async function addEngine(engineid) {
         var hostname = retrieved.host
         var port = retrieved.port
 
-        ENGINES.set(engineid, { hostname: hostname, port: port })
+        ENGINES.set(engineid, { hostname: hostname, port: port, processcnt: 1 })
         STAGE_EVENT_ID.set(engineid, 0)
         ARTIFACT_EVENT_ID.set(engineid, 0)
         MQTT.createConnection(hostname, port, '', '', 'aggregator-client')
@@ -131,18 +130,26 @@ async function addEngine(engineid) {
     }
     else {
         LOG.logWorker('DEBUG', `Engine [${engineid}] is alredy registered`, module.id)
+        var data = ENGINES.get(engineid)
+        data.processcnt = data.processcnt + 1
+        ENGINES.set(data)
     }
 }
 
 function removeEngine(engineid) {
     LOG.logWorker('DEBUG', `removeEngine called: ${engineid}`, module.id)
-    if (ENGINES.has(engineid)) {
+    if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt == 1) {
         MQTT.unsubscribeTopic(hostname, port, engineid + '/stage_log')
         MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
         MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
         ENGINES.delete(engineid)
         STAGE_EVENT_ID.delete(engineid)
         ARTIFACT_EVENT_ID.delete(engineid)
+    }
+    else if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt > 1) {
+        var data = ENGINES.get(engineid)
+        data.processcnt = data.processcnt - 1
+        ENGINES.set(data)
     }
     else {
         LOG.logWorker('WARNING', `Engine [${engineid}] cannot be removed, it is not registered`, module.id)
