@@ -835,13 +835,9 @@ test('[writeNewProcessGroup][addProcessToProcessGroup][readProcessGroup][WRITE A
     expect(data3).toEqual(expected3)
 
     //Try to add process to non-defined process group
-    await DB.addProcessToProcessGroup('group-3', 'process-1')
-    const data4 = await DB.readProcessGroup('group-3')
-    var expected4 = {
-        name: 'group-3',
-        processes: ['process-1'],
-        type: 'static'
-    }
+    await DB.addProcessToProcessGroup('group-4', 'process-1')
+    const data4 = await DB.readProcessGroup('group-4')
+    var expected4 = undefined
     expect(data4).toEqual(expected4)
 })
 

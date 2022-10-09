@@ -1,3 +1,5 @@
+var events = require('events');
+
 var LOG = require('../auxiliary/LogManager')
 var DB = require('../database/databaseconnector')
 
@@ -14,28 +16,29 @@ var eventEmitter = new events.EventEmitter();
  * @param {string array} stakeholders List of the stakeholders of the new process instance
  */
 async function addProcessInstanceDynamic(processtype, processinstance, stakeholders) {
+    LOG.logSystem('DEBUG', `addProcessInstanceDynamic called`, module.id)
     var groups = new Set()
     var promises = []
 
     stakeholders.forEach(element => {
+        LOG.logSystem('DEBUG', `retrieving groups requesting ${element}`, module.id)
         //Getting all process groups which are requesting one of the stakeholders of the process
         promises.push(DB.readProcessGroupByRules(element, undefined).then((data, err) => {
+            LOG.logSystem('DEBUG', `${data.length} groups found`, module.id)
             if (data.length > 0) {
                 data.forEach(group => {
-                    groups.set(group.name)
+                    groups.add(group.name)
                 });
             }
-            resolve()
         }))
         //Getting all process groups which are requesting one of the stakeholders of the process
         //and specifying its type as well
         promises.push(DB.readProcessGroupByRules(element, processtype).then((data, err) => {
             if (data.length > 0) {
                 data.forEach(group => {
-                    groups.set(group.name)
+                    groups.add(group.name)
                 });
             }
-            resolve()
         }))
     });
     await Promise.all(promises)
@@ -56,18 +59,16 @@ async function removeProcessInstanceDynamic(processtype, processinstance, stakeh
         promises.push(DB.readProcessGroupByRules(element, undefined).then((data, err) => {
             if (data.length > 0) {
                 data.forEach(group => {
-                    groups.set(group.name)
+                    groups.add(group.name)
                 });
             }
-            resolve()
         }))
         promises.push(DB.readProcessGroupByRules(element, processtype).then((data, err) => {
             if (data.length > 0) {
                 data.forEach(group => {
-                    groups.set(group.name)
+                    groups.add(group.name)
                 });
             }
-            resolve()
         }))
     });
     await Promise.all(promises)
@@ -80,6 +81,9 @@ async function removeProcessInstanceDynamic(processtype, processinstance, stakeh
 
 async function getGroupMemberProcesses(groupid) {
     var data = await DB.readProcessGroup(groupid)
+    if(data == undefined){
+        return []
+    }
     return data.processes
 }
 

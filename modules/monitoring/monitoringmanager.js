@@ -23,7 +23,7 @@ var MONITORING_ACTIVITIES = new Map();
  * @param {string array} notificationRules Array containig the notification rules 
  * @returns 
  */
-async function Monitoring(id, type, groups, notificationRules) {
+function Monitoring(id, type, groups, notificationRules) {
     var monitoringid = id
     var monitoringType = type
     var monitoredGroups = groups //Dynamic and static groups

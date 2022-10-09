@@ -66,14 +66,13 @@ async function closeProcessInstance(processtype, instanceid) {
     })
 }
 
-async function defineProcessGroup(groupid, memberprocesses, type, stakeholderrule, processtyperule) {
+async function defineProcessGroup(groupid, memberprocesses, grouptype, stakeholderrule, processtyperule) {
     var reading = await DDB.readProcessGroup(groupid)
     if (reading) {
         LOG.logSystem('WARNING', `Process Group with name ${groupid} is already defined, has not been modified!`, module.id)
         return false
     }
-
-    DDB.writeNewProcessGroup(groupid, memberprocesses, type, stakeholderrule, processtyperule).then((data, err) => {
+    DDB.writeNewProcessGroup(groupid, memberprocesses, grouptype, stakeholderrule, processtyperule).then((data, err) => {
         if (err) {
             LOG.logSystem('WARNING', `Adding new Process Group with name ${groupid} was not successfull`, module.id)
             return false

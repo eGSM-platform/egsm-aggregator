@@ -119,17 +119,28 @@ function applyProcessTypeConfig(config) {
  * @param {*} config Parsed XML config file
  */
 function applyProcessGroupConfig(config) {
+    LOG.logSystem('DEBUG', 'applyProcessGroupConfig called', module.id)
     var groups = config['content']?.['process-group'] || []
     groups.forEach(element => {
-        var type = element?.['type'] || 'static'
-        if (type != 'static') {
-            var stakeholderrule = element?.['membership-rules']?.['stakeholder'] || undefined
-            var processtyperule = element?.['membership-rules']?.['process-type'] || undefined
+        var grouptype = element['type'][0] || 'static'
+        if (grouptype == 'dynamic') {
+            var stakeholderrule = element?.['membership-rules']?.[0]?.['stakeholder']?.[0] || undefined
+            var processtyperule = element?.['membership-rules']?.[0]?.['process-type']?.[0] || undefined
         }
-        var processes = element?.['process-instance'] || []
 
-        if (!CONTENTMANAGER.defineProcessGroup(element['name'][0], processes, type, stakeholderrule, processtyperule)) {
+        if (!CONTENTMANAGER.defineProcessGroup(element['name'][0], [], grouptype, stakeholderrule, processtyperule)) {
             throw Error(`Could not define process group ${element['name'][0]}`)
+        }
+
+        //If the group is static then it may have member process isntances,
+        //Adding them to the group
+        if (grouptype == 'static') {
+            var processes = element?.['process-instance'] || []
+            processes.forEach(member => {
+                if (!CONTENTMANAGER.addProcessToProcessGroup(element['name'][0], member)) {
+                    throw Error(`Could not add member ${member} to process group ${element['name'][0]}`)
+                }
+            });
         }
     });
 }
@@ -150,8 +161,7 @@ function applyProcessInstnaceConfig(config) {
             var instance = element['instance-id'][0]
             var host = element['host'][0]
             var port = element['port'][0]
-            var stakeholders = element?.['stakeholders'] || []
-            var stakeholders = []
+            var stakeholders = element?.['stakeholder'] || []
 
             if (!CONTENTMANAGER.defineAndStartProcessInstance(type, instance, stakeholders, host, port)) {
                 throw Error(`Could not define process instance  ${type}/${instance}`)

@@ -431,21 +431,21 @@ async function readStakeholder(stakeholderid) {
 }
 
 //PROCESS GROUP operations
-async function writeNewProcessGroup(processgroupid, memberprocesses, type, stakeholderrule, processtyperule) {
+async function writeNewProcessGroup(processgroupid, memberprocesses, grouptype, stakeholderrule, processtyperule) {
     var pk = { name: 'NAME', value: processgroupid }
     var attributes = []
-    if (memberprocesses && memberprocesses.length > 0) {
+    if (grouptype == undefined) {
+        grouptype = 'static'
+    }
+    attributes.push({ name: 'GROUP_TYPE', type: 'S', value: grouptype })
+    if (memberprocesses && memberprocesses.length > 0 && grouptype == 'static') {
         var buffer = []
         for (var i = 0; i < memberprocesses.length; i++) {
             buffer.push({ S: memberprocesses[i] })
         }
         attributes.push({ name: 'PROCESSES', type: 'L', value: buffer })
     }
-    if (type == undefined || type == 'static') {
-        attributes.push({ name: 'TYPE', type: 'S', value: 'static' })
-    }
-    else {
-        attributes.push({ name: 'TYPE', type: 'S', value: type })
+    if (grouptype == 'dynamic') {
         attributes.push({ name: 'STAKEHOLDER_RULE', type: 'S', value: stakeholderrule })
         attributes.push({ name: 'PROCESS_TYPE_RULE', type: 'S', value: processtyperule })
     }
@@ -456,13 +456,13 @@ async function readProcessGroup(processgroupid) {
     var pk = { name: 'NAME', value: processgroupid }
     const data = await DYNAMO.readItem('PROCESS_GROUP_DEFINITION', pk, undefined)
     var final = undefined
-    if (data['Item']) {
+    if (data['Item'] != undefined) {
         final = {
             name: data['Item']['NAME']['S'],
-            type: data['Item']['TYPE']['S'],
+            type: data['Item']['GROUP_TYPE']['S'],
             processes: []
         }
-        if (final.type != 'static') {
+        if (final.type == 'dynamic') {
             final['stakeholder_rule'] = data['Item']?.STAKEHOLDER_RULE?.S || undefined
             final['process_type_rule'] = data['Item']?.PROCESS_TYPE_RULE?.S || undefined
         }
@@ -479,7 +479,9 @@ async function readProcessGroup(processgroupid) {
 async function addProcessToProcessGroup(processgroupid, newprocessid) {
     const reading = await readProcessGroup(processgroupid)
     if (reading == undefined) {
-        return writeNewProcessGroup(processgroupid, [newprocessid])
+        LOG.logSystem('ERROR', `Cannot add process ${newprocessid} to process group ${processgroupid}, since the group is not defined`)
+        return
+        //return writeNewProcessGroup(processgroupid, [newprocessid])
     }
 
     //If the group is already defined
@@ -538,7 +540,7 @@ async function readProcessGroupByRules(stakeholderrule, processtyperule) {
     result.forEach(element => {
         final.push({
             name: element.NAME.S,
-            type: element.TYPE.S,
+            type: element.GROUP_TYPE.S,
             processes: [],//element.ARTIFACT_STATE.S,
             stakeholder_rule: element?.STAKEHOLDER_RULE?.S || undefined,
             process_type_rule: element?.PROCESS_TYPE_RULE?.S || undefined,

@@ -1,0 +1,27 @@
+<content>
+    <!-- Defining Process types -->
+    <process-instance>
+        <type-name>DummyProcessType</type-name>
+        <instance-id>1</instance-id>
+        <host>localhost</host>
+        <port>1883</port>
+        <stakeholder>Truck_Company/1</stakeholder>
+        <stakeholder>Shipping_Company/1</stakeholder>
+    </process-instance>
+    <process-instance>
+        <type-name>DummyProcessType</type-name>
+        <instance-id>2</instance-id>
+        <host>localhost</host>
+        <port>1883</port>
+        <stakeholder>Truck_Company/2</stakeholder>
+        <stakeholder>Shipping_Company/2</stakeholder>
+    </process-instance>
+    <process-instance>
+        <type-name>DummyProcessType</type-name>
+        <instance-id>3</instance-id>
+        <host>localhost</host>
+        <port>1883</port>
+        <stakeholder>Truck_Company/3</stakeholder>
+        <stakeholder>Shipping_Company/3</stakeholder>
+    </process-instance>
+</content>

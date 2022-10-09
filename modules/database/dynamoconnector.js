@@ -197,6 +197,7 @@ async function readItem(tablename, pk, sk, requestedfields) {
 }
 
 async function updateItem(tablename, pk, sk, attr) {
+    LOG.logSystem('DEBUG', `Updating [${tablename}] ->[${pk.value}]:[${sk?.value}]`, module.id)
     verifyInit()
     if (!sk) {
         var sk = { value: '' }
