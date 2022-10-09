@@ -166,35 +166,12 @@ function applyMonitoringConfig(config) {
     //Retrieving process monitoring definitions and iterating through them
     var process_monitoring = config['aggregation-profile']?.['process-monitoring'] || []
     process_monitoring.forEach(element => {
-        // Retrieving processes which are included in the monitoring
+        //Retrieving information about monitoring
         var groupNames = element?.['process-group'] || []
-        var memberProcesses = element?.['member'] || []
-        var monitoredProcesses = new Set()
-        groupNames.forEach(group => {
-            DDB.readProcessGroup(group).then((data, err) => {
-                if (err || data == undefined) {
-                    LOG.logSystem('ERROR', `Could not read ${group} from database`, module.id)
-                }
-                else {
-                    data.processes.forEach(process => {
-                        if (!monitoredProcesses.has(process)) {
-                            monitoredProcesses.add(process)
-                        }
-                    })
-                }
-            })
-        });
-        memberProcesses.forEach(process => {
-            if (!monitoredProcesses.has(process)) {
-                monitoredProcesses.add(process)
-            }
-        });
-
-        //Retrieving further information about monitoring
         var type = element['type'][0]
         var notificationRules = element['notified']
         var monitroingId = element['id'] || undefined
-        MONITORING.startMonitoringActivity(type, monitoredProcesses, notificationRules, monitroingId)
+        MONITORING.startMonitoringActivity(type, groupNames, notificationRules, monitroingId)
     });
 
     //Retrieving artifact monitoring definitions and iterating through them
