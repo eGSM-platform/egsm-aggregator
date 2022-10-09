@@ -28,6 +28,11 @@ function Monitoring(id, type, groups, notificationRules) {
     var monitoringType = type
     var monitoredGroups = groups //Dynamic and static groups
     var notificationRules = notificationRules
+
+    //Subscribe to the necessary GROUPMAN events
+    groups.forEach(element => {
+        GROUPMAN.eventEmitter(element, groupmanEventHandler)
+    });
     var monitoredProcesses = new Set()
 
     //Registering all engines to the monitoring which are currently included in the process groups
@@ -114,6 +119,11 @@ function Monitoring(id, type, groups, notificationRules) {
         }
     }
 
+    /**
+     * Responsible EventHandler for GROUPMAN events
+     * @param {string} eventtype Type of event (added/removed)
+     * @param {string} engineid ID of the affected engine (process instance)
+     */
     var groupmanEventHandler = function (eventtype, engineid) {
         switch (eventtype) {
             case 'added':
@@ -125,10 +135,24 @@ function Monitoring(id, type, groups, notificationRules) {
         }
     }
 
+    var destruct = function () {
+        //Unsubscribe from GROUPMAN EventEmitter topics
+        groups.forEach(element => {
+            GROUPMAN.eventEmitter.removeListener(element, groupmanEventHandler)
+        });
+        
+        //Call remove Engine for each engines
+        var engineBuff = monitoredProcesses
+        engineBuff.forEach((value,key) => {
+            removeEngine(key)
+        });
+    }
+
     return {
         //processEventHandler: processEventHandler,
         addEngine: addEngine,
-        removeEngine: removeEngine
+        removeEngine: removeEngine,
+        destruct: destruct
     }
 }
 
@@ -152,9 +176,25 @@ function startMonitoringActivity(type, groups, notificationRules, id) {
     return true
 }
 
+/**
+ * Destructs a Monitoring Activity specified by its ID
+ * @param {string} monitoringid ID of Monitoring Activity to destruct 
+ * @returns True if the destruction was successfull, false otherwise
+ */
+function destructMonitoring(monitoringid) {
+    if (MONITORING_ACTIVITIES.has(id)) {
+        MONITORING_ACTIVITIES.get(id).destruct()
+        MONITORING_ACTIVITIES.delete(id)
+        return true
+    }
+    LOG.logSystem('WARNING', `Monitoring Activity ${id} is not defined, cannot be removed`)
+    return false
+}
+
 module.exports = {
     //Creates and starts a new monitoring activity based on the provided config file 
     startMonitoringActivity: startMonitoringActivity,
+    destructMonitoring: destructMonitoring,
     //Stops a selected monitoring activity
     //stopMonitoringActivity: stopMonitoringActivity,
     //Returns a list of existing monitoring activity ID-s
