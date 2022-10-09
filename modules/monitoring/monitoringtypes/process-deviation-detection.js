@@ -1,4 +1,4 @@
-var LOG = require('../../auxiliary/LogManager')
+var LOG = require('../../auxiliary/logManager')
 
 module.id = "PRO_DEV_DET"
 

@@ -1,5 +1,5 @@
 
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('../auxiliary/logManager')
 var aux = require('../auxiliary/auxiliary')
 
 module.id = "SUPCONN"

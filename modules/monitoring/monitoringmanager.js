@@ -1,6 +1,6 @@
 var UUID = require('uuid');
 
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('../auxiliary/logManager')
 var OBSERVER = require('./engineobserver');
 var NOTIFMAN = require('../communication/notificationmanager')
 var GROUPMAN = require('./groupmanager')
@@ -135,12 +135,15 @@ function Monitoring(id, type, groups, notificationRules) {
         }
     }
 
+    /**
+     * Removes all engines, subscribes from all EVentEmitters and destructs the Monitoring Activity
+     */
     var destruct = function () {
         //Unsubscribe from GROUPMAN EventEmitter topics
         groups.forEach(element => {
             GROUPMAN.eventEmitter.removeListener(element, groupmanEventHandler)
         });
-        
+
         //Call remove Engine for each engines
         var engineBuff = monitoredProcesses
         engineBuff.forEach((value,key) => {
@@ -182,12 +185,12 @@ function startMonitoringActivity(type, groups, notificationRules, id) {
  * @returns True if the destruction was successfull, false otherwise
  */
 function destructMonitoring(monitoringid) {
-    if (MONITORING_ACTIVITIES.has(id)) {
-        MONITORING_ACTIVITIES.get(id).destruct()
-        MONITORING_ACTIVITIES.delete(id)
+    if (MONITORING_ACTIVITIES.has(monitoringid)) {
+        MONITORING_ACTIVITIES.get(monitoringid).destruct()
+        MONITORING_ACTIVITIES.delete(monitoringid)
         return true
     }
-    LOG.logSystem('WARNING', `Monitoring Activity ${id} is not defined, cannot be removed`)
+    LOG.logSystem('WARNING', `Monitoring Activity ${monitoringid} is not defined, cannot be removed`)
     return false
 }
 

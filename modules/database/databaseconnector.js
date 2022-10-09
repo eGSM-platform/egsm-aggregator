@@ -1,5 +1,5 @@
 var DYNAMO = require('./dynamoconnector')
-var LOG = require('../auxiliary/LogManager');
+var LOG = require('../auxiliary/logManager');
 
 module.id = 'DB-CONNECTOR'
 

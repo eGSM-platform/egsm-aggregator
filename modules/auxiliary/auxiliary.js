@@ -1,5 +1,3 @@
-var LOG = require('./LogManager')
-
 module.id = "AUX"
 
 module.exports = {

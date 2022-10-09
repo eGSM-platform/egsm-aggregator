@@ -1,6 +1,6 @@
 var events = require('events');
 
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('../auxiliary/logManager')
 var DB = require('../database/databaseconnector')
 
 module.id = "GROUPMAN"

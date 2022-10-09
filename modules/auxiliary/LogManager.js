@@ -10,14 +10,16 @@ fs.mkdirSync('log/' + prefix);
 var system_log = fs.createWriteStream('log/' + prefix + '/worker.log', { flags: 'w' });
 
 function writeConsole(type, value, location) {
+  var location = '[' + location +']'+ ' '.repeat(15 - location.length); 
+  var typeFinal = type + ' '.repeat(9 - type.length); 
   if (LOG_LEVELS[type] < 2) {
-    console.log(util.format('[' + location + ']\t' + type + ' \t ' + value))
+    console.log(util.format(location + typeFinal + ' \t ' + value))
   }
   else if (LOG_LEVELS[type] == 2) {
-    console.log("\x1b[33m%s\x1b[0m", util.format('[' + location + ']\t' + type + ' \t ' + value))
+    console.log("\x1b[33m%s\x1b[0m", util.format(location + typeFinal + ' \t ' + value))
   }
   else {
-    console.log('\x1b[31m%s\x1b[0m', util.format('[' + location + ']\t' + type + ' \t ' + value))
+    console.log('\x1b[31m%s\x1b[0m', util.format(location + typeFinal + ' \t ' + value))
   }
 }
 

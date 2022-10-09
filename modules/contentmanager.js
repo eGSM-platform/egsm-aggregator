@@ -1,7 +1,7 @@
-var LOG = require('./auxiliary/LogManager')
+var LOG = require('./auxiliary/logManager')
 var DDB = require('./database/databaseconnector')
 
-module.id = "CONTENT_MANAGER"
+module.id = "CONTMAN"
 
 async function defineProcessType(processtype, egsm_info, egsm_model, bpmn_model) {
     var existingProcess = await DDB.readProcessType(processtype)

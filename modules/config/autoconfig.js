@@ -1,7 +1,7 @@
 var xml2js = require('xml2js');
 var fs = require('fs');
 
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('../auxiliary/logManager')
 var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');

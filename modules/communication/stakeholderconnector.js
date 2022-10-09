@@ -1,4 +1,4 @@
-var LOG = require('../auxiliary/LogManager')
+var LOG = require('../auxiliary/logManager')
 var MQTT = require('./mqttconnector')
 var DDB = require('../database/databaseconnector')
 
