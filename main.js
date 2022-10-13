@@ -1,9 +1,21 @@
 
+//var express = require('express');
+//var bodyParser = require('body-parser')
+//var jsonParser = bodyParser.json()
+//var app = express();
+const axios = require('axios').default;
+//const path = require('path');
+
+
+
+
 var fs = require('fs');
 
 var DYNAMO = require('./modules/database/dynamoconnector')
 var LOG = require('./modules/auxiliary/logManager')
+var AUX = require('./modules/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
+var SUPCONNMAN = require('./modules/communication/supervisorconnector')
 
 module.id = "MAIN"
 
