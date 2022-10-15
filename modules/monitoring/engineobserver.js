@@ -4,8 +4,9 @@ var LOG = require('../auxiliary/logManager')
 var MQTT = require('../communication/mqttconnector')
 var DB = require('../database/databaseconnector')
 var VALIDATOR = require('../validator')
+var GROUPMAN = require('../monitoring/groupmanager')
 
-module.id = "OBSV" 
+module.id = "OBSV"
 
 var eventEmitter = new events.EventEmitter();
 
@@ -18,9 +19,27 @@ var eventEmitter = new events.EventEmitter();
  */
 var ENGINES = new Map()
 
+var MONITORED_BROKERS = new Set() //HOST:PORT
+
 //Data structures to calculate event ID-s
 var STAGE_EVENT_ID = new Map()
 var ARTIFACT_EVENT_ID = new Map()
+
+function addMonitoredBroker(hostname, port, username, userpassword) {
+    //TODO: add proper, unique clientname. It is hardcoded now and mosquitto wont work in case of more than 1 agents
+    LOG.logSystem('DEBUG', `Adding monitored broker: ${hostname}:${port}`, module.id)
+    MQTT.createConnection(hostname, port, username, userpassword, 'aggregator-client')
+    MQTT.subscribeTopic(hostname, port, 'process_lifecycle')
+    MONITORED_BROKERS.add(hostname + ':' + port)
+}
+
+function removeMonitoredBroker(hostname, port) {
+    LOG.logSystem('DEBUG', `Removing monitored broker: ${hostname}:${port}`, module.id)
+    if(MONITORED_BROKERS.has(hostname + ':' + port)){
+        MQTT.unsubscribeTopic(hostname, port, 'process_lifecycle')
+        MONITORED_BROKERS.delete(hostname + ':' + port)
+    }
+}
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
@@ -34,8 +53,29 @@ function onMessageReceived(hostname, port, topic, message) {
         return
     }
 
-    //Performing Database operations
-    if (ENGINES.has(engineid)) {
+    //Handling the incoming message
+    //Process lifecycle event
+    if (topic == 'process_lifecycle') {
+        var stakeholderNames = []
+        msgJson.stakeholders.forEach(element => {
+            stakeholderNames.push(element.name)
+        });
+        switch (msgJson.event_type) {
+            case 'created':
+                GROUPMAN.addProcessInstanceDynamic(msgJson.process_type, msgJson.instance_id, stakeholderNames)
+                //NOTE: We are NOT adding engine to ENGINES map here, it will be done by the Monitoring Agent
+                break;
+            case 'deleted':
+                GROUPMAN.removeProcessInstanceDynamic(msgJson.process_type, msgJson.instance_id, stakeholderNames)
+                //NOTE: We are NOT removing engine from ENGINES map here, it will be done by the Monitoring Agent
+                break;
+            default:
+                LOG.logSystem('WARNING', `Unknown event type (${msgJson.event_type}) received on topic ${topic}`)
+            break;
+        }
+    }
+    //Process-related event
+    else if (ENGINES.has(engineid)) {
         //Engine event has to be write into database
         switch (elements[2]) {
             case 'stage_log':
@@ -57,7 +97,7 @@ function onMessageReceived(hostname, port, topic, message) {
                     state: msgJson.state,
                     compliance: msgJson.compliance
                 }
-                
+
                 DB.writeStageEvent(stageLog)
 
                 //Notify core
@@ -156,10 +196,13 @@ function removeEngine(engineid) {
     }
 }
 
+//Setting up MQTT environment
 MQTT.init(onMessageReceived)
 
 module.exports = {
     eventEmitter: eventEmitter,
+    addMonitoredBroker: addMonitoredBroker,
+    removeMonitoredBroker: removeMonitoredBroker,
     addEngine: addEngine,
     removeEngine: removeEngine
 }

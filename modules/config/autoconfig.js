@@ -6,7 +6,8 @@ var CONTENTMANAGER = require('../contentmanager')
 var DDB = require('../database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
 var VALIDATOR = require('../validator')
-var GROUPMAN = require('../monitoring/groupmanager')
+var GROUPMAN = require('../monitoring/groupmanager');
+const OBSERVER = require('../monitoring/engineobserver');
 
 
 module.id = "AUTOC"
@@ -145,6 +146,17 @@ function applyProcessGroupConfig(config) {
     });
 }
 
+function applyMonitoredBrokerConfig(config) {
+    var brokers = config['content']?.['broker'] || []
+    brokers.forEach(element => {
+        var host = element['host'][0]
+        var port = element['port'][0]
+        var username = element['user-name'][0]
+        var userpassword = element['user-password'][0]
+        OBSERVER.addMonitoredBroker(host, port, username, userpassword)
+    });
+}
+
 /**
  * Creates the process instances in the database defined in the config file
  * @param {*} config Parsed XML config file
@@ -197,6 +209,9 @@ function executeConfig(type, config) {
     else if (type == '--process_type_config') {
         applyProcessTypeConfig(configParsed)
     }
+    else if (type == '--monitored_broker_config') {
+        applyMonitoredBrokerConfig(configParsed)
+    }
     else if (type == '--process_instance_config') {
         applyProcessInstnaceConfig(configParsed)
     }
@@ -209,8 +224,5 @@ function executeConfig(type, config) {
 }
 
 module.exports = {
-    applyContentConfig: applyContentConfig,
-    applyProcessTypeConfig: applyProcessTypeConfig,
-    applyProcessInstnaceConfig: applyProcessInstnaceConfig,
     executeConfig: executeConfig
 }

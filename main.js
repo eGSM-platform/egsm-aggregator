@@ -1,13 +1,5 @@
 
-//var express = require('express');
-//var bodyParser = require('body-parser')
-//var jsonParser = bodyParser.json()
-//var app = express();
 const axios = require('axios').default;
-//const path = require('path');
-
-
-
 
 var fs = require('fs');
 
@@ -30,7 +22,7 @@ if (cmdArgs.length > 0) {
     var configCommands = []
     for (var i = 0; i < cmdArgs.length; i++) {
         var elements = cmdArgs[i].split(' ')
-        if (elements[0] == '--content_config' || elements[0] == '--process_type_config' || elements[0] == '--process_instance_config' || elements[0] == '--process_group_config' || elements[0] == '--monitoring_config') {
+        if (elements[0] == '--content_config' || elements[0] == '--process_type_config' || elements[0] == '--monitored_broker_config' || elements[0] == '--process_instance_config' || elements[0] == '--process_group_config' || elements[0] == '--monitoring_config') {
             var filecontent = fs.readFileSync(elements[1], 'utf8')
             configCommands.push({ type: elements[0], content: filecontent })
         }
@@ -40,14 +32,7 @@ if (cmdArgs.length > 0) {
     })
 }
 
-LOG.logSystem('DEBUG', 'Input command executed', module.id)
-
-
-//Waiting for connection with the supervisor
-
-//supervisor.initConnection()
-
-
+LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
 
 
 

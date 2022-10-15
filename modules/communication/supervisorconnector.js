@@ -7,6 +7,7 @@ var ROUTES = require('./routes')
 
 module.id = "SUPCONNMAN"
 
+const SUPERVISOR_CONNECTION_REQUIRED = false
 var SUPERVISOR = "localhost"
 var SUPERVISOR_PORT = 8085
 var SUPERVISOR_CONNECTION = false
@@ -74,25 +75,27 @@ function isConnectionEstablished() {
     return SUPERVISOR_CONNECTION
 }
 
-//LOG.logSystem('DEBUG', 'Waiting for superwisor connection to be established...', module.id)
-//LOG.logSystem('DEBUG', 'Waiting for superwisor connection to be established..', module.id)
-(async () => {
-    while (!isConnectionEstablished()) {
-        LOG.logSystem('DEBUG', 'Reaching out Supervisor...', module.id)
-        let res = await getCredentials()
-        if (res) {
-            LOG.logSystem('DEBUG', 'Supervisor connection established', module.id)
+if (SUPERVISOR_CONNECTION_REQUIRED) {
+    (async () => {
+        while (!isConnectionEstablished()) {
+            LOG.logSystem('DEBUG', 'Reaching out Supervisor...', module.id)
+            let res = await getCredentials()
+            if (res) {
+                LOG.logSystem('DEBUG', 'Supervisor connection established', module.id)
+            }
+            else {
+                LOG.logSystem('WARNING', 'Could not reach out Supervisor. Retry in 5 sec...', module.id)
+                await AUX.sleep(5000);
+            }
         }
-        else {
-            LOG.logSystem('WARNING', 'Could not reach out Supervisor. Retry in 5 sec...', module.id)
-            await AUX.sleep(5000);
-        }
-    }
-})();
+    })();
+}
 
 process.on('SIGINT', () => {
-    LOG.logSystem('DEBUG', `Deregistering Agent [${AGENT_ID}] from Supervisor`, module.id)
-    deregisterFromSupervisor()
+    if (AGENT_ID != undefined) {
+        LOG.logSystem('DEBUG', `Deregistering Agent [${AGENT_ID}] from Supervisor`, module.id)
+        deregisterFromSupervisor()
+    }
 });
 
 LOG.logSystem('DEBUG', 'Supervisor connection is established...', module.id)
