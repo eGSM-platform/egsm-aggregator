@@ -1,6 +1,6 @@
 // Load the AWS SDK for Node.js
 var AWS = require('aws-sdk');
-var LOG = require('../auxiliary/logManager');
+var LOG = require('../egsm-common/auxiliary/logManager');
 
 module.id = 'DDB'
 SUPPRESS_NO_CONFIG_WARNING = 1

@@ -1,6 +1,6 @@
 var UUID = require('uuid');
 
-var LOG = require('../auxiliary/logManager')
+var LOG = require('../egsm-common/auxiliary/logManager')
 var OBSERVER = require('./engineobserver');
 var NOTIFMAN = require('../communication/notificationmanager')
 var GROUPMAN = require('./groupmanager')
@@ -197,9 +197,8 @@ function destructMonitoring(monitoringid) {
 module.exports = {
     //Creates and starts a new monitoring activity based on the provided config file 
     startMonitoringActivity: startMonitoringActivity,
+    //Terminates a selected monitoring activity
     destructMonitoring: destructMonitoring,
-    //Stops a selected monitoring activity
-    //stopMonitoringActivity: stopMonitoringActivity,
     //Returns a list of existing monitoring activity ID-s
     //getMonitoringActivities: getMonitoringActivities
 

@@ -1,5 +1,5 @@
-var LOG = require('../auxiliary/logManager')
-var MQTT = require('./mqttconnector')
+var LOG = require('../egsm-common/auxiliary/logManager')
+var MQTT = require('../egsm-common/communication/mqttconnector')
 var DDB = require('../database/databaseconnector')
 
 module.id = 'STAKEHOLDER_CONN'

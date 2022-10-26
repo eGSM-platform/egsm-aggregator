@@ -4,8 +4,8 @@ var app = express();
 //var bodyParser = require('body-parser')
 //var jsonParser = bodyParser.json()
 
-var LOG = require('../auxiliary/logManager')
-var AUX = require('../auxiliary/auxiliary')
+var LOG = require('../egsm-common/auxiliary/logManager')
+var AUX = require('../egsm-common/auxiliary/auxiliary')
 
 var REST_API_PORT = 8200
 

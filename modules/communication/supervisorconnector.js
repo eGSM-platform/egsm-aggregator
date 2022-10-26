@@ -1,8 +1,8 @@
 
 const axios = require('axios')//.default;
 
-var LOG = require('../auxiliary/logManager')
-var AUX = require('../auxiliary/auxiliary')
+var LOG = require('../egsm-common/auxiliary/logManager')
+var AUX = require('../egsm-common/auxiliary/auxiliary')
 var ROUTES = require('./routes')
 
 module.id = "SUPCONNMAN"

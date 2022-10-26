@@ -1,4 +1,4 @@
-var LOG = require('../auxiliary/logManager')
+var LOG = require('../egsm-common/auxiliary/logManager')
 var DDB = require('../database/databaseconnector')
 var STAKEHOLDER = require('../communication/stakeholderconnector')
 

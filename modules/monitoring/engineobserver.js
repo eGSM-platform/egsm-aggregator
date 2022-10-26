@@ -1,7 +1,7 @@
 var events = require('events');
 
-var LOG = require('../auxiliary/logManager')
-var MQTT = require('../communication/mqttconnector')
+var LOG = require('../egsm-common/auxiliary/logManager')
+var MQTT = require('../egsm-common/communication/mqttconnector')
 var DB = require('../database/databaseconnector')
 var VALIDATOR = require('../validator')
 var GROUPMAN = require('../monitoring/groupmanager')

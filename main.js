@@ -4,8 +4,8 @@ const axios = require('axios').default;
 var fs = require('fs');
 
 var DYNAMO = require('./modules/database/dynamoconnector')
-var LOG = require('./modules/auxiliary/logManager')
-var AUX = require('./modules/auxiliary/auxiliary')
+var LOG = require('./modules/egsm-common/auxiliary/logManager')
+var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
 var SUPCONNMAN = require('./modules/communication/supervisorconnector')
 
