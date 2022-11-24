@@ -1,15 +1,14 @@
-
-const axios = require('axios').default;
-
 var fs = require('fs');
 
 var DYNAMO = require('./modules/egsm-common/database/dynamoconnector')
 var LOG = require('./modules/egsm-common/auxiliary/logManager')
 var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
-var SUPCONNMAN = require('./modules/communication/supervisorconnector')
+var MQTTCOMM = require('./modules/communication/mqttcommunication')
 
 module.id = "MAIN"
+
+var AGGREGATOR_ID = ''
 
 DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:8000')
 
@@ -34,6 +33,8 @@ if (cmdArgs.length > 0) {
 
 LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
 
-
-
-
+LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
+WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
+    AGGREGATOR_ID = result
+    LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
+})
