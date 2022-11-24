@@ -1,7 +1,7 @@
 var events = require('events');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
-var DB = require('../database/databaseconnector')
+var DB = require('../egsm-common/database/databaseconnector')
 
 module.id = "GROUPMAN"
 

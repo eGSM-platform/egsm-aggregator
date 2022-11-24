@@ -3,7 +3,7 @@ const axios = require('axios').default;
 
 var fs = require('fs');
 
-var DYNAMO = require('./modules/database/dynamoconnector')
+var DYNAMO = require('./modules/egsm-common/database/dynamoconnector')
 var LOG = require('./modules/egsm-common/auxiliary/logManager')
 var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')

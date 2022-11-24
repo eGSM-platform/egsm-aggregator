@@ -3,7 +3,7 @@ var fs = require('fs');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
 var CONTENTMANAGER = require('../contentmanager')
-var DDB = require('../database/databaseconnector')
+var DDB = require('../egsm-common/database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
 var VALIDATOR = require('../validator')
 var GROUPMAN = require('../monitoring/groupmanager');
