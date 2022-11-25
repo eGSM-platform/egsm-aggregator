@@ -5,6 +5,7 @@ var LOG = require('./modules/egsm-common/auxiliary/logManager')
 var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
 var MQTTCOMM = require('./modules/communication/mqttcommunication')
+var PRIM = require('./modules/egsm-common/auxiliary/primitives')
 
 module.id = "MAIN"
 

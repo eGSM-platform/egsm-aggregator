@@ -3,7 +3,6 @@ var events = require('events');
 var LOG = require('../egsm-common/auxiliary/logManager')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 var DB = require('../egsm-common/database/databaseconnector')
-var VALIDATOR = require('../egsm-common/database/validator')
 var GROUPMAN = require('../monitoring/groupmanager')
 
 module.id = "OBSV"
@@ -20,10 +19,6 @@ var eventEmitter = new events.EventEmitter();
 var ENGINES = new Map()
 
 var MONITORED_BROKERS = new Set() //HOST:PORT
-
-//Data structures to calculate event ID-s
-var STAGE_EVENT_ID = new Map()
-var ARTIFACT_EVENT_ID = new Map()
 
 function addMonitoredBroker(hostname, port, username, userpassword) {
     //TODO: add proper, unique clientname. It is hardcoded now and mosquitto wont work in case of more than 1 agents
@@ -54,7 +49,6 @@ function onMessageReceived(hostname, port, topic, message) {
     }
 
     //Handling the incoming message
-    //Process lifecycle event
     if (topic == 'process_lifecycle') {
         var stakeholderNames = []
         msgJson.stakeholders.forEach(element => {
@@ -84,6 +78,7 @@ function onMessageReceived(hostname, port, topic, message) {
                 break;
 
             case 'artifact_log':
+                //TODO: Move it to Worker
                 //Update process instance attachment in Database
                 if (msgJson.artifact_state == 'attached') {
                     DB.attachArtifactToProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
@@ -128,8 +123,6 @@ async function addEngine(engineid) {
         var port = retrieved.port
 
         ENGINES.set(engineid, { hostname: hostname, port: port, processcnt: 1 })
-        STAGE_EVENT_ID.set(engineid, 0)
-        ARTIFACT_EVENT_ID.set(engineid, 0)
         MQTT.createConnection(hostname, port, '', '', 'aggregator-client')
         MQTT.subscribeTopic(hostname, port, engineid + '/stage_log')
         MQTT.subscribeTopic(hostname, port, engineid + '/artifact_log')
@@ -150,8 +143,6 @@ function removeEngine(engineid) {
         MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
         MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
         ENGINES.delete(engineid)
-        STAGE_EVENT_ID.delete(engineid)
-        ARTIFACT_EVENT_ID.delete(engineid)
     }
     else if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt > 1) {
         var data = ENGINES.get(engineid)
