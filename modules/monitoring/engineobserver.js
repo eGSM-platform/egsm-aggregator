@@ -79,30 +79,11 @@ function onMessageReceived(hostname, port, topic, message) {
         //Engine event has to be write into database
         switch (elements[2]) {
             case 'stage_log':
-                //TODO: revise
-
-                if (!VALIDATOR.validateStageLogMessage(msgJson)) {
-                    LOG.logWorker('WARNING', `Data is missing to write StageEvent log`, module.id)
-                    return
-                }
-
                 //Notify core
                 eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
                 break;
 
             case 'artifact_log':
-                var eventid = ARTIFACT_EVENT_ID.get(engineid) + 1
-                ARTIFACT_EVENT_ID.set(engineid, eventid)
-
-                if (!VALIDATOR.validateArtifactLogMessage(msgJson)) {
-                    LOG.logWorker('WARNING', `Data is missing to write ArtifactEvent log`, module.id)
-                    return
-                }
-
-                msgJson['event_id'] = eventid
-                //Write artifact event into Database
-                DB.writeArtifactEvent(msgJson)
-
                 //Update process instance attachment in Database
                 if (msgJson.artifact_state == 'attached') {
                     DB.attachArtifactToProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
