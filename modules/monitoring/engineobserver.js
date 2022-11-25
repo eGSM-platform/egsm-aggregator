@@ -3,7 +3,6 @@ var events = require('events');
 var LOG = require('../egsm-common/auxiliary/logManager')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 var DB = require('../egsm-common/database/databaseconnector')
-var VALIDATOR = require('../validator')
 var GROUPMAN = require('../monitoring/groupmanager')
 
 module.id = "OBSV"
@@ -20,10 +19,6 @@ var eventEmitter = new events.EventEmitter();
 var ENGINES = new Map()
 
 var MONITORED_BROKERS = new Set() //HOST:PORT
-
-//Data structures to calculate event ID-s
-var STAGE_EVENT_ID = new Map()
-var ARTIFACT_EVENT_ID = new Map()
 
 function addMonitoredBroker(hostname, port, username, userpassword) {
     //TODO: add proper, unique clientname. It is hardcoded now and mosquitto wont work in case of more than 1 agents
@@ -54,7 +49,6 @@ function onMessageReceived(hostname, port, topic, message) {
     }
 
     //Handling the incoming message
-    //Process lifecycle event
     if (topic == 'process_lifecycle') {
         var stakeholderNames = []
         msgJson.stakeholders.forEach(element => {
@@ -79,44 +73,12 @@ function onMessageReceived(hostname, port, topic, message) {
         //Engine event has to be write into database
         switch (elements[2]) {
             case 'stage_log':
-                //TODO: revise
-                var eventid = STAGE_EVENT_ID.get(engineid) + 1
-                STAGE_EVENT_ID.set(engineid, eventid)
-
-                if (!VALIDATOR.validateStageLogMessage(msgJson)) {
-                    LOG.logWorker('WARNING', `Data is missing to write StageEvent log`, module.id)
-                    return
-                }
-
-                var stageLog = {
-                    processid: msgJson.processid,
-                    eventid: 'event_' + eventid.toString(),
-                    timestamp: msgJson.timestamp,
-                    stagename: msgJson.stagename,
-                    status: msgJson.status,
-                    state: msgJson.state,
-                    compliance: msgJson.compliance
-                }
-
-                DB.writeStageEvent(stageLog)
-
                 //Notify core
                 eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
                 break;
 
             case 'artifact_log':
-                var eventid = ARTIFACT_EVENT_ID.get(engineid) + 1
-                ARTIFACT_EVENT_ID.set(engineid, eventid)
-
-                if (!VALIDATOR.validateArtifactLogMessage(msgJson)) {
-                    LOG.logWorker('WARNING', `Data is missing to write ArtifactEvent log`, module.id)
-                    return
-                }
-
-                msgJson['event_id'] = eventid
-                //Write artifact event into Database
-                DB.writeArtifactEvent(msgJson)
-
+                //TODO: Move it to Worker
                 //Update process instance attachment in Database
                 if (msgJson.artifact_state == 'attached') {
                     DB.attachArtifactToProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
@@ -161,8 +123,6 @@ async function addEngine(engineid) {
         var port = retrieved.port
 
         ENGINES.set(engineid, { hostname: hostname, port: port, processcnt: 1 })
-        STAGE_EVENT_ID.set(engineid, 0)
-        ARTIFACT_EVENT_ID.set(engineid, 0)
         MQTT.createConnection(hostname, port, '', '', 'aggregator-client')
         MQTT.subscribeTopic(hostname, port, engineid + '/stage_log')
         MQTT.subscribeTopic(hostname, port, engineid + '/artifact_log')
@@ -183,8 +143,6 @@ function removeEngine(engineid) {
         MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
         MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
         ENGINES.delete(engineid)
-        STAGE_EVENT_ID.delete(engineid)
-        ARTIFACT_EVENT_ID.delete(engineid)
     }
     else if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt > 1) {
         var data = ENGINES.get(engineid)

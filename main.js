@@ -5,6 +5,7 @@ var LOG = require('./modules/egsm-common/auxiliary/logManager')
 var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
 var MQTTCOMM = require('./modules/communication/mqttcommunication')
+var PRIM = require('./modules/egsm-common/auxiliary/primitives')
 
 module.id = "MAIN"
 
@@ -34,7 +35,8 @@ if (cmdArgs.length > 0) {
 LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
 
 LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
-WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
+var broker = new PRIM.Broker('localhost', 1883, '', '')
+/*WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
     AGGREGATOR_ID = result
     LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
-})
+})*/
