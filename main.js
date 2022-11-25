@@ -34,7 +34,8 @@ if (cmdArgs.length > 0) {
 LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
 
 LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
-WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
+var broker = new PRIM.Broker('localhost', 1883, '', '')
+/*WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
     AGGREGATOR_ID = result
     LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
-})
+})*/

@@ -1,0 +1,23 @@
+{
+  "name": "egsm-aggregator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eGSM-platform/egsm-aggregator.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eGSM-platform/egsm-aggregator/issues"
+  },
+  "homepage": "https://github.com/eGSM-platform/egsm-aggregator#readme",
+  "dependencies": {
+    "aws-sdk": "^2.1261.0",
+    "mqtt": "^4.3.7"
+  }
+}

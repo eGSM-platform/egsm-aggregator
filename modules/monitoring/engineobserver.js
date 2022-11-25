@@ -3,7 +3,7 @@ var events = require('events');
 var LOG = require('../egsm-common/auxiliary/logManager')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 var DB = require('../egsm-common/database/databaseconnector')
-var VALIDATOR = require('../validator')
+var VALIDATOR = require('../egsm-common/database/validator')
 var GROUPMAN = require('../monitoring/groupmanager')
 
 module.id = "OBSV"
@@ -80,25 +80,11 @@ function onMessageReceived(hostname, port, topic, message) {
         switch (elements[2]) {
             case 'stage_log':
                 //TODO: revise
-                var eventid = STAGE_EVENT_ID.get(engineid) + 1
-                STAGE_EVENT_ID.set(engineid, eventid)
 
                 if (!VALIDATOR.validateStageLogMessage(msgJson)) {
                     LOG.logWorker('WARNING', `Data is missing to write StageEvent log`, module.id)
                     return
                 }
-
-                var stageLog = {
-                    processid: msgJson.processid,
-                    eventid: 'event_' + eventid.toString(),
-                    timestamp: msgJson.timestamp,
-                    stagename: msgJson.stagename,
-                    status: msgJson.status,
-                    state: msgJson.state,
-                    compliance: msgJson.compliance
-                }
-
-                DB.writeStageEvent(stageLog)
 
                 //Notify core
                 eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
