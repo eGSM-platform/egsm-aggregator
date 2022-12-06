@@ -1,9 +1,11 @@
+var UUID = require('uuid');
 var events = require('events');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 var DB = require('../egsm-common/database/databaseconnector')
-var GROUPMAN = require('../monitoring/groupmanager')
+var GROUPMAN = require('../monitoring/groupmanager');
+const { Broker } = require('../egsm-common/auxiliary/primitives');
 
 module.id = "OBSV"
 
@@ -14,99 +16,51 @@ var eventEmitter = new events.EventEmitter();
  * Map to store default MQTT broker of each engine instances, 
  * furthermore a counter indicates how many monitoring activity is using the engine
  * This value is used to avoid unnecessary MQTT subscription function calls and to 
- * remove the engine fromthis map only when no activity left subcribed to its topics
+ * remove the engine from this map only when no activity left subcribed to its topics
  */
 var ENGINES = new Map()
 
 var MONITORED_BROKERS = new Set() //HOST:PORT
 
-function addMonitoredBroker(hostname, port, username, userpassword) {
-    //TODO: add proper, unique clientname. It is hardcoded now and mosquitto wont work in case of more than 1 agents
-    LOG.logSystem('DEBUG', `Adding monitored broker: ${hostname}:${port}`, module.id)
-    MQTT.createConnection(hostname, port, username, userpassword, 'aggregator-client')
-    MQTT.subscribeTopic(hostname, port, 'process_lifecycle')
-    MONITORED_BROKERS.add(hostname + ':' + port)
+function addMonitoredBroker(broker) {
+    LOG.logSystem('DEBUG', `Adding monitored broker: ${broker.host}:${broker.port}`, module.id)
+    MQTT.createConnection(broker.host, broker.port, broker.username, broker.password, 'aggregator-agent-' + UUID.v4())
+    MQTT.subscribeTopic(broker.host, broker.port, 'process_lifecycle')
+    MONITORED_BROKERS.add(broker.host + ':' + broker.port)
 }
 
-function removeMonitoredBroker(hostname, port) {
-    LOG.logSystem('DEBUG', `Removing monitored broker: ${hostname}:${port}`, module.id)
-    if(MONITORED_BROKERS.has(hostname + ':' + port)){
-        MQTT.unsubscribeTopic(hostname, port, 'process_lifecycle')
-        MONITORED_BROKERS.delete(hostname + ':' + port)
+function removeMonitoredBroker(broker) {
+    LOG.logSystem('DEBUG', `Removing monitored broker: ${broker.host}:${broker.port}`, module.id)
+    if (MONITORED_BROKERS.has(broker.host + ':' + broker.port)) {
+        MQTT.unsubscribeTopic(broker.host, broker.port, 'process_lifecycle')
+        MONITORED_BROKERS.delete(broker.host + ':' + broker.port)
     }
 }
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
-    var elements = topic.split('/')
-    var engineid = elements[0] + '/' + elements[1]//Engine id is the first two parts of the topic
-
     try {
         var msgJson = JSON.parse(message.toString())
     } catch (error) {
         LOG.logWorker('ERROR', `Error while parsing JSON message (${error})`, module.id)
         return
     }
-
-    //Handling the incoming message
+    //Process lifecycle message arrived to the global process lifecycle topic
     if (topic == 'process_lifecycle') {
-        var stakeholderNames = []
-        msgJson.stakeholders.forEach(element => {
-            stakeholderNames.push(element.name)
+        GROUPMAN.onProcessLifecycleEvent(message)
+        return
+    }
+    //The message is from an engine-specific topic
+    var processid = msgJson['process_type'] + '/' + msgJson['instnace_id']
+    if (ENGINES.has(processid)) {
+        //Notify Jobs
+        ENGINES.get(processid).onchange.forEach(jobnotify => {
+            jobnotify(msgJson)
         });
-        switch (msgJson.event_type) {
-            case 'created':
-                GROUPMAN.addProcessInstanceDynamic(msgJson.process_type, msgJson.instance_id, stakeholderNames)
-                //NOTE: We are NOT adding engine to ENGINES map here, it will be done by the Monitoring Agent
-                break;
-            case 'deleted':
-                GROUPMAN.removeProcessInstanceDynamic(msgJson.process_type, msgJson.instance_id, stakeholderNames)
-                //NOTE: We are NOT removing engine from ENGINES map here, it will be done by the Monitoring Agent
-                break;
-            default:
-                LOG.logSystem('WARNING', `Unknown event type (${msgJson.event_type}) received on topic ${topic}`)
-            break;
-        }
-    }
-    //Process-related event
-    else if (ENGINES.has(engineid)) {
-        //Engine event has to be write into database
-        switch (elements[2]) {
-            case 'stage_log':
-                //Notify core
-                eventEmitter.emit(engineid + '/stage_log', engineid, 'stage', msgJson)
-                break;
-
-            case 'artifact_log':
-                //TODO: Move it to Worker
-                //Update process instance attachment in Database
-                if (msgJson.artifact_state == 'attached') {
-                    DB.attachArtifactToProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
-                }
-                else {
-                    DB.deattachArtifactFromProcessInstance(msgJson.process_type, msgJson.process_id, msgJson.artifact_name)
-                }
-
-                //Notify core if about the event and it will evaluate based on historical data and
-                //the configured observation if any further thing is needed to do
-                eventEmitter.emit(engineid + '/artifact_log', msgJson)
-                break
-
-            case 'adhoc':
-                // Adhoc events are not written into the database for now, they are not used in any
-                //post-processing currently
-
-                //In case of an adhoc event the core needs to be notified
-                eventEmitter.emit(engineid + '/adhoc', msgJson)
-                break;
-        }
-    }
-    else {
-        LOG.logWorker('WARNING', `Event log message received from an unknown engine [${hostname}]:[${port}] -> [${topic}]`, module.id)
     }
 }
 
-async function addEngine(engineid) {
+async function addEngine(engineid, onchange) {
     LOG.logWorker('DEBUG', `addEngine called: ${engineid} -> ${hostname}:${port}`, module.id)
     //Add engine to the module collections
     if (!ENGINES.has(engineid)) {
@@ -119,35 +73,37 @@ async function addEngine(engineid) {
             LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
             return
         }
-        var hostname = retrieved.host
-        var port = retrieved.port
+        //TODO: Read broker from database instead
+        //var hostname = retrieved.host
+        //var port = retrieved.port
+        var broker = new Broker('localhost', 1883, '', '')
+        var hostname = broker.host
+        var port = broker.port
 
-        ENGINES.set(engineid, { hostname: hostname, port: port, processcnt: 1 })
-        MQTT.createConnection(hostname, port, '', '', 'aggregator-client')
+        ENGINES.set(engineid, { hostname: hostname, port: port, onchange: new Set([onchange]) })
+        if (!MONITORED_BROKERS.has(hostname + ':' + port.toString())) {
+            addMonitoredBroker(broker)
+        }
         MQTT.subscribeTopic(hostname, port, engineid + '/stage_log')
         MQTT.subscribeTopic(hostname, port, engineid + '/artifact_log')
         MQTT.subscribeTopic(hostname, port, engineid + '/adhoc')
     }
     else {
         LOG.logWorker('DEBUG', `Engine [${engineid}] is alredy registered`, module.id)
-        var data = ENGINES.get(engineid)
-        data.processcnt = data.processcnt + 1
-        ENGINES.set(data)
+        ENGINES.get(engineid).onchange.add(onchange)
     }
 }
 
-function removeEngine(engineid) {
+function removeEngine(engineid, onchange) {
     LOG.logWorker('DEBUG', `removeEngine called: ${engineid}`, module.id)
-    if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt == 1) {
-        MQTT.unsubscribeTopic(hostname, port, engineid + '/stage_log')
-        MQTT.unsubscribeTopic(hostname, port, engineid + '/artifact_log')
-        MQTT.unsubscribeTopic(hostname, port, engineid + '/adhoc')
+    if (ENGINES.has(engineid) && ENGINES.get(engineid).onchange.size == 1) {
+        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/stage_log')
+        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/artifact_log')
+        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/adhoc')
         ENGINES.delete(engineid)
     }
-    else if (ENGINES.has(engineid) && ENGINES.get(engineid).processcnt > 1) {
-        var data = ENGINES.get(engineid)
-        data.processcnt = data.processcnt - 1
-        ENGINES.set(data)
+    else if (ENGINES.has(engineid) && ENGINES.get(engineid).onchange.size > 1) {
+        ENGINES.get(engineid).onchange.delete(onchange)
     }
     else {
         LOG.logWorker('WARNING', `Engine [${engineid}] cannot be removed, it is not registered`, module.id)
@@ -158,9 +114,8 @@ function removeEngine(engineid) {
 MQTT.init(onMessageReceived)
 
 module.exports = {
-    eventEmitter: eventEmitter,
     addMonitoredBroker: addMonitoredBroker,
     removeMonitoredBroker: removeMonitoredBroker,
     addEngine: addEngine,
-    removeEngine: removeEngine
+    removeEngine: removeEngine,
 }

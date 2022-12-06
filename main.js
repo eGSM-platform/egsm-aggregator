@@ -6,14 +6,22 @@ var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
 var CONFIG = require('./modules/config/autoconfig')
 var MQTTCOMM = require('./modules/communication/mqttcommunication')
 var PRIM = require('./modules/egsm-common/auxiliary/primitives')
+var DBCONFIG = require('./modules/egsm-common/database/databaseconfig')
 
 module.id = "MAIN"
 
 var AGGREGATOR_ID = ''
 
-DYNAMO.initDynamo('fakeMyKeyId', 'fakeSecretAccessKey', 'local', 'http://localhost:8000')
-
 LOG.logSystem('DEBUG', 'Aggregator started...', module.id)
+
+DBCONFIG.initDatabaseConnection()
+
+LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
+var broker = new PRIM.Broker('localhost', 1883, '', '')
+MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
+    AGGREGATOR_ID = result
+    LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
+})
 
 const cmdArgs = process.argv.slice(2);
 //Check if there is any command line parameter to evaluate
@@ -33,10 +41,3 @@ if (cmdArgs.length > 0) {
 }
 
 LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
-
-LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
-var broker = new PRIM.Broker('localhost', 1883, '', '')
-/*WORKER_ID = MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
-    AGGREGATOR_ID = result
-    LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
-})*/

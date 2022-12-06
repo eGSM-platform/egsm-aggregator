@@ -30,21 +30,23 @@
         <artifact-type>truck</artifact-type>
         <artifact-id>0001</artifact-id>
         <!--If the processes where a particular artifact participating are becoming faulty too ofter-->
-        <type>artifact-failure-rate</type>
+        <type>artifact-unreliability-alert</type>
         <!--If more then failure-percentage-limit percentage of the processes where the artifact were used
         became faulty, the owner of the artifact is notified -->
-        <failure-percentage-limit>40</failure-percentage-limit>
+        <faultiness-threshold>40</faultiness-threshold>
         <!--The failure rate calculation will based on the last sample-size number of artifact usage-->
-        <sample-size>10</sample-size>
+        <window-size>10</window-size>
+        <!--Frequency of operations-->
+        <frequency>3600</frequency>
     </artifact-monitoring>
 
     <artifact-monitoring>
         <!--Periodically calculates the failure rate of the specified artifact and fires notification
             if the failure rate rises faster than a predefined limit-->
-        <type>artifact-failure-rate-gradient</type>
-        <!--The notification will be fired if the derivative of the failure rate is above this value -->
-        <failure-percentage-limit>5</failure-percentage-limit>
+        <type>artifact-unreliability-gradient-alert</type>
         <!--The failure rate will be calculated after window-size number of artifact uses-->
-        <window-size>10</window-size>
+        <gradient-threshosd>10</gradient-threshosd>
+        <!--Frequency of operations-->
+        <frequency>3600</frequency>
     </artifact-monitoring>
 </aggregation-profile>

@@ -2,94 +2,106 @@ var events = require('events');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
 var DB = require('../egsm-common/database/databaseconnector')
+var MQTTCONN = require('../communication/mqttcommunication')
 
 module.id = "GROUPMAN"
 
-var eventEmitter = new events.EventEmitter();
+LOADED_GROUPS = new Map() //groupid -> {member_processes:set(), onchange:set(), membership_rules:string} 
+
+function onProcessLifecycleEvent(messageObj) {
+    //Iterating through the loaded groups and adding the new process if is staisfies the rules
+    var processid = messageObj.process.process_type + '/' + messageObj.process.instance_id
+    LOADED_GROUPS.forEach(group => {
+        if (messageObj.type == 'created') {
+            if (isRulesSatisfied(messageObj.process, group.membership_rules)) {
+                group.member_processes.set(processid)
+                group.onchange.forEach(notifFunction => {
+                    notifFunction(processid, { type: messageObj.type })
+                });
+            }
+        }
+        else if (messageObj.type == 'destructed') {
+            if (group.member_processes.has(processid)) {
+                group.member_processes.delete(processid)
+                notifFunction(processid, { type: messageObj.type })
+            }
+        }
+    });
+}
 
 /**
- * Adds a new process instance to all process groups whose rules are met with the process instance 
- * The rules can specify a stakeholder OR a stakeholder + process type pair
- * This function looks for both type of rule met
- * @param {string} processtype Type of the new process
- * @param {string} processinstance Instance ID of the new process
- * @param {string array} stakeholders List of the stakeholders of the new process instance
+ * Checks if the process should be added to the group defined by the provided rule
+ * Supported Rules:
+ * -PROCESS_TYPE: The process need to have a specified type (optional)
+ * -STAKEHOLDER: The defined stakeholder needs to be included in the process's stakeholders, otherwise it will result False (optional)
+ * @param {Process object} process {process_type, instance_id, stakeholders}
+ * @param {Object[]} rules {type:string, value}
  */
-async function addProcessInstanceDynamic(processtype, processinstance, stakeholders) {
-    LOG.logSystem('DEBUG', `addProcessInstanceDynamic called`, module.id)
-    var groups = new Set()
-    var promises = []
-
-    stakeholders.forEach(element => {
-        LOG.logSystem('DEBUG', `retrieving groups requesting ${element}`, module.id)
-        //Getting all process groups which are requesting one of the stakeholders of the process
-        promises.push(DB.readProcessGroupByRules(element, undefined).then((data, err) => {
-            LOG.logSystem('DEBUG', `${data.length} groups found`, module.id)
-            if (data.length > 0) {
-                data.forEach(group => {
-                    groups.add(group.name)
+function isRulesSatisfied(process, rules) {
+    var result = false
+    var stakeholderRuleSatisfied = false
+    rules.forEach(rule => {
+        switch (rule.type) {
+            case 'PROCESS_TYPE':
+                if (rule.value != process.process_type) {
+                    return false
+                }
+                break;
+            case 'STAKEHOLDER':
+                var found = false
+                process.stakeholders.forEach(stakeholder => {
+                    if (stakeholder == rule.value) {
+                        found = true
+                    }
                 });
-            }
-        }))
-        //Getting all process groups which are requesting one of the stakeholders of the process
-        //and specifying its type as well
-        promises.push(DB.readProcessGroupByRules(element, processtype).then((data, err) => {
-            if (data.length > 0) {
-                data.forEach(group => {
-                    groups.add(group.name)
-                });
-            }
-        }))
+                stakeholderRuleSatisfied = stakeholderRuleSatisfied || found
+                break;
+        }
     });
-    await Promise.all(promises)
-
-    groups.forEach(element => {
-        //Adding the process to all groups which rules met earlier
-        DB.addProcessToProcessGroup(element, processtype + '/' + processinstance)
-        //Emitting event with the new process instance as payload, so the Monitoring instances will be notified and
-        //they can start to monitor the new process instance
-        eventEmitter.emit(element, 'added', processtype + '/' + processinstance)
-    });
+    result = stakeholderRuleSatisfied
+    return result
 }
 
-async function removeProcessInstanceDynamic(processtype, processinstance, stakeholders) {
-    var groups = new Set()
-    var promises = []
-    stakeholders.forEach(element => {
-        promises.push(DB.readProcessGroupByRules(element, undefined).then((data, err) => {
-            if (data.length > 0) {
-                data.forEach(group => {
-                    groups.add(group.name)
-                });
-            }
-        }))
-        promises.push(DB.readProcessGroupByRules(element, processtype).then((data, err) => {
-            if (data.length > 0) {
-                data.forEach(group => {
-                    groups.add(group.name)
-                });
-            }
-        }))
+async function subscribeGroupChanges(groupid, onchange) {
+    var promise = new Promise(function (resolve, reject) {
+        if (LOADED_GROUPS.has(groupid)) {
+            LOADED_GROUPS.get(groupid).onchange.add(onchange)
+            return resolve(LOADED_GROUPS.get(groupid).member_processes)
+        }
+        else {
+            DB.readProcessGroup(groupid).then(async (groupData) => {
+                if (groupData == undefined) {
+                    LOG.logSystem('WARNING', `Requested Process Group [${groupid}] is not defined in the Database`)
+                    return resolve(new Set())
+                }
+                //Group found in DB, discovering online processes
+                processes = await MQTTCONN.discoverProcessGroupMembers(groupid)
+                LOADED_GROUPS.set(groupid, { membership_rules: groupData.membership_rules, member_processes: new Set(processes) })
+                return resolve(processes)
+            })
+        }
     });
-    await Promise.all(promises)
-
-    groups.forEach(element => {
-        DB.removeProcessFromProcessGroup(element, processtype + '/' + processinstance)
-        eventEmitter.emit(element, 'removed', processtype + '/' + processinstance)
-    });
+    return promise
 }
 
-async function getGroupMemberProcesses(groupid) {
-    var data = await DB.readProcessGroup(groupid)
-    if(data == undefined){
-        return []
+function unsubscribeGroupChanges(groupid, onchange) {
+    if (!LOADED_GROUPS.has(groupid)) {
+        console.error("Group not loaded")
+        return
     }
-    return data.processes
+    if (!LOADED_GROUPS.get(groupid).onchange.has(onchange)) {
+        console.error("function not added")
+    }
+    if (LOADED_GROUPS.get(groupid).onchange.get(onchange).size == 1) {
+        LOADED_GROUPS.delete(groupid)
+    }
+    else {
+        LOADED_GROUPS.get(groupid).onchange.delete(onchange)
+    }
 }
 
 module.exports = {
-    eventEmitter: eventEmitter,
-    addProcessInstanceDynamic: addProcessInstanceDynamic,
-    removeProcessInstanceDynamic: removeProcessInstanceDynamic,
-    getGroupMemberProcesses: getGroupMemberProcesses
+    onProcessLifecycleEvent: onProcessLifecycleEvent,
+    subscribeGroupChanges: subscribeGroupChanges,
+    unsubscribeGroupChanges: unsubscribeGroupChanges,
 }

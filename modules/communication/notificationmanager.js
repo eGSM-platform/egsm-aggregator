@@ -1,6 +1,5 @@
 var LOG = require('../egsm-common/auxiliary/logManager')
 var DDB = require('../egsm-common/database/databaseconnector')
-var STAKEHOLDER = require('../communication/stakeholderconnector')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 
 module.id = 'NOTIFMAN'
