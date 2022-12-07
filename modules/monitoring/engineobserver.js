@@ -7,6 +7,8 @@ var DB = require('../egsm-common/database/databaseconnector')
 var GROUPMAN = require('../monitoring/groupmanager');
 const { Broker } = require('../egsm-common/auxiliary/primitives');
 
+const TOPIC_PROCESS_LIFECYCLE = 'process_lifecycle'
+
 module.id = "OBSV"
 
 var eventEmitter = new events.EventEmitter();
@@ -25,14 +27,14 @@ var MONITORED_BROKERS = new Set() //HOST:PORT
 function addMonitoredBroker(broker) {
     LOG.logSystem('DEBUG', `Adding monitored broker: ${broker.host}:${broker.port}`, module.id)
     MQTT.createConnection(broker.host, broker.port, broker.username, broker.password, 'aggregator-agent-' + UUID.v4())
-    MQTT.subscribeTopic(broker.host, broker.port, 'process_lifecycle')
+    MQTT.subscribeTopic(broker.host, broker.port, TOPIC_PROCESS_LIFECYCLE)
     MONITORED_BROKERS.add(broker.host + ':' + broker.port)
 }
 
 function removeMonitoredBroker(broker) {
     LOG.logSystem('DEBUG', `Removing monitored broker: ${broker.host}:${broker.port}`, module.id)
     if (MONITORED_BROKERS.has(broker.host + ':' + broker.port)) {
-        MQTT.unsubscribeTopic(broker.host, broker.port, 'process_lifecycle')
+        MQTT.unsubscribeTopic(broker.host, broker.port, TOPIC_PROCESS_LIFECYCLE)
         MONITORED_BROKERS.delete(broker.host + ':' + broker.port)
     }
 }
@@ -46,8 +48,8 @@ function onMessageReceived(hostname, port, topic, message) {
         return
     }
     //Process lifecycle message arrived to the global process lifecycle topic
-    if (topic == 'process_lifecycle') {
-        GROUPMAN.onProcessLifecycleEvent(message)
+    if (topic == TOPIC_PROCESS_LIFECYCLE) {
+        GROUPMAN.onProcessLifecycleEvent(msgJson)
         return
     }
     //The message is from an engine-specific topic
@@ -65,14 +67,14 @@ async function addEngine(engineid, onchange) {
     //Add engine to the module collections
     if (!ENGINES.has(engineid)) {
         //Retrieving engine details from Database
-        var elements = engineid.split('/')
-        var type = elements[0]
-        var instanceid = elements[1]
-        var retrieved = await DB.readProcessInstance(type, instanceid)
-        if (retrieved == undefined) {
-            LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
-            return
-        }
+        //var elements = engineid.split('/')
+        //var type = elements[0]
+        //var instanceid = elements[1]
+        //var retrieved = await DB.readProcessInstance(type, instanceid)
+        //if (retrieved == undefined) {
+        //    LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
+        //    return
+        //}
         //TODO: Read broker from database instead
         //var hostname = retrieved.host
         //var port = retrieved.port

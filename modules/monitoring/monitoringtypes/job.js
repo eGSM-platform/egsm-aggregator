@@ -13,7 +13,7 @@ class Job {
      * @param {string[]} monitoredartifacts
      * @param {string[]} notificationrules 
      */
-    constructor(id, brokers, owner, monitoredprocesses, monitoredprocessgroups, monitoredartifacts, notificationrules) {
+    constructor(id, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules) {
         this.id = id
         this.owner = owner
         this.started = Date.now() / 1000
@@ -29,26 +29,29 @@ class Job {
         this.periodiccalls = []
 
         //Add processes which are static defined for monitoring
-        monitoredprocesses.forEach(element => {
-            addMonitoredProcess(element)
-        });
+        for (var process of monitored) {
+            this.addMonitoredProcess(process)
+        }
 
         //Extend the 'monitoredprocesses' set with processes from the provided process groups
         //and subscribe to changes in these process groups
         this.monitoredprocessgroups.forEach(element => {
-            GROUPMAN.subscribeGroupChanges(element, this.onGroupChange).forEach(processid => {
-                this.addMonitoredProcess(processid)
+            GROUPMAN.subscribeGroupChanges(element, this.onGroupChange.bind(this)).then((memberProcesses) => {
+                for (var process of memberProcesses) {
+                    this.addMonitoredProcess(process)
+                }
             })
         });
     }
 
     addMonitoredProcess(processid) {
+        console.log(`addMonitoredProcess of [${this.id}]called`)
         if (this.monitoredprocesses.has(processid)) {
             console.warn('Cannot add same process instance twice')
             return
         }
         this.monitoredprocesses.add(processid)
-        OBSERVER.addEngine(processid, onProcessEvent)
+        OBSERVER.addEngine(processid, this.onProcessEvent.bind(this))
     }
 
     removeMonitoredProcess(processid) {
@@ -57,7 +60,7 @@ class Job {
             return
         }
         this.monitoredprocesses.delete(processid)
-        OBSERVER.removeEngine(element, onProcessEvent)
+        OBSERVER.removeEngine(processid, this.onProcessEvent.bind(this))
     }
 
     terminate() {
@@ -69,13 +72,13 @@ class Job {
 
         //Unsubscribe from group changes
         this.monitoredprocessgroups.forEach(element => {
-            GROUPMAN.unsubscribeGroupChanges(element, this.onGroupChange)
+            GROUPMAN.unsubscribeGroupChanges(element, this.onGroupChange.bind(this))
         });
 
         //Unsubscribe from engine updates
         this.monitoredprocesses.forEach(element => {
             removeMonitoredProcess(element)
-            //OBSERVER.removeEngine(element, onProcessEvent)
+            //OBSERVER.removeEngine(element, onProcessEvent.bind(this))
         });
     }
 
@@ -84,7 +87,7 @@ class Job {
     }
 
     onProcessEvent(message) {
-        //TODO: this has to be overwritten
+        console.warn('This function should be overwritten')
     }
 
     notifyStakeholders(messageObj) {
@@ -92,6 +95,7 @@ class Job {
     }
 
     onGroupChange(processid, event) {
+        console.log(`onGroupChange of [${this.id}] called for ${processid}`)
         if (event.type == 'created') {
             this.addMonitoredProcess(processid)
         }
@@ -100,3 +104,5 @@ class Job {
         }
     }
 }
+
+module.exports = { Job }

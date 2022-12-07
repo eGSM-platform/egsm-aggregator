@@ -6,27 +6,29 @@ var MQTTCONN = require('../communication/mqttcommunication')
 
 module.id = "GROUPMAN"
 
-LOADED_GROUPS = new Map() //groupid -> {member_processes:set(), onchange:set(), membership_rules:string} 
+var LOADED_GROUPS = new Map() //groupid -> {member_processes:set(), onchange:set(), membership_rules:string} 
 
 function onProcessLifecycleEvent(messageObj) {
     //Iterating through the loaded groups and adding the new process if is staisfies the rules
     var processid = messageObj.process.process_type + '/' + messageObj.process.instance_id
-    LOADED_GROUPS.forEach(group => {
+    for (var [groupName, group] of LOADED_GROUPS.entries()) {
         if (messageObj.type == 'created') {
             if (isRulesSatisfied(messageObj.process, group.membership_rules)) {
-                group.member_processes.set(processid)
-                group.onchange.forEach(notifFunction => {
+                group.member_processes.add(processid)
+                for (var notifFunction of group.onchange) {
                     notifFunction(processid, { type: messageObj.type })
-                });
+                }
             }
         }
         else if (messageObj.type == 'destructed') {
             if (group.member_processes.has(processid)) {
+                for (var notifFunction of group.onchange) {
+                    notifFunction(processid, { type: messageObj.type })
+                }
                 group.member_processes.delete(processid)
-                notifFunction(processid, { type: messageObj.type })
             }
         }
-    });
+    }
 }
 
 /**
@@ -39,26 +41,22 @@ function onProcessLifecycleEvent(messageObj) {
  */
 function isRulesSatisfied(process, rules) {
     var result = false
-    var stakeholderRuleSatisfied = false
-    rules.forEach(rule => {
-        switch (rule.type) {
-            case 'PROCESS_TYPE':
-                if (rule.value != process.process_type) {
-                    return false
-                }
-                break;
-            case 'STAKEHOLDER':
-                var found = false
-                process.stakeholders.forEach(stakeholder => {
-                    if (stakeholder == rule.value) {
-                        found = true
-                    }
-                });
-                stakeholderRuleSatisfied = stakeholderRuleSatisfied || found
-                break;
+    var stakeholderRuleSatisfied = true
+    if (rules?.PROCESS_TYPE != undefined) {
+        if (rules.PROCESS_TYPE != process.process_type) {
+            return false
         }
-    });
-    result = stakeholderRuleSatisfied
+    }
+    if (rules?.STAKEHOLDER != undefined) {
+        stakeholderRuleSatisfied = false
+        process.stakeholders.forEach(stakeholder => {
+            if (stakeholder == rules.STAKEHOLDER) {
+                stakeholderRuleSatisfied = true
+            }
+        });
+    }
+    result = result || stakeholderRuleSatisfied
+    console.log('Rules result:' + result)
     return result
 }
 
@@ -70,14 +68,20 @@ async function subscribeGroupChanges(groupid, onchange) {
         }
         else {
             DB.readProcessGroup(groupid).then(async (groupData) => {
+                console.log('DB:' + JSON.stringify(groupData))
                 if (groupData == undefined) {
+                    console.log('undefined')
                     LOG.logSystem('WARNING', `Requested Process Group [${groupid}] is not defined in the Database`)
                     return resolve(new Set())
                 }
                 //Group found in DB, discovering online processes
-                processes = await MQTTCONN.discoverProcessGroupMembers(groupid)
-                LOADED_GROUPS.set(groupid, { membership_rules: groupData.membership_rules, member_processes: new Set(processes) })
-                return resolve(processes)
+                LOG.logSystem('DEBUG', `Requested Process Group [${groupid}] is found in the Database`)
+                MQTTCONN.discoverProcessGroupMembers(groupid).then((processes) => {
+                    var membersSet = new Set(['asdas'])
+                    LOADED_GROUPS.set(groupid, { membership_rules: JSON.parse(groupData.membership_rules), member_processes: new Set(...processes), onchange: new Set([onchange]) })
+                    console.log('LOADED:' + JSON.stringify(LOADED_GROUPS))
+                    return resolve(processes)
+                })
             })
         }
     });

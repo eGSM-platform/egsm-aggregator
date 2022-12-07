@@ -28,6 +28,7 @@ var MQTT_USER = undefined;
 var MQTT_USER_PW = undefined
 
 var REQUEST_PROMISES = new Map()
+var REQUEST_BUFFERS = new Map() // Request id -> Usage specific storage place (used only for specific type of requests)
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
@@ -148,7 +149,7 @@ async function discoverProcessGroupMembers(groupid) {
         "message_type": 'PROCESS_GROUP_MEMBER_DISCOVERY',
         "group_id": groupid
     }
-    MQTT.publishTopic(BROKER.host, BROKER.port, AGGREGATOR_GLOBAL_TOPIC_OUT, JSON.stringify(message))
+    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_OUT, JSON.stringify(message))
     var promise = new Promise(async function (resolve, reject) {
         REQUEST_PROMISES.set(request_id, resolve)
         REQUEST_BUFFERS.set(request_id, [])
@@ -158,10 +159,10 @@ async function discoverProcessGroupMembers(groupid) {
         REQUEST_PROMISES.delete(request_id)
         REQUEST_BUFFERS.delete(request_id)
         if (result.length == 0) {
-            resolve(new Set())
+            resolve(new Set([]))
         }
         else {
-            var final = new Set()
+            var final = new Set([])
             //Result contains an Array of {process_type, process_instance, process_perspective} 
             //In case of multiple perspectives one process instance can be represented multiple times,
             //so we need to handle it
