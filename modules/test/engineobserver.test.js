@@ -1,5 +1,5 @@
 const { Broker } = require('../egsm-common/auxiliary/primitives');
-const OBSERVER = require('./engineobserver')
+const OBSERVER = require('../monitoring/engineobserver')
 const MQTT = require('../egsm-common/communication/mqttconnector')
 const AUX = require('../egsm-common/auxiliary/auxiliary')
 const LOG = require('../egsm-common/auxiliary/logManager')

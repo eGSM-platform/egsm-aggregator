@@ -10,10 +10,10 @@ class Job {
      * @param {string} owner 
      * @param {string[]} monitoredprocesses 
      * @param {string[]} monitoredprocessgroups 
-     * @param {string[]} monitoredartifacts
+     * @param {Artifact[]} monitoredartifacts
      * @param {string[]} notificationrules 
      */
-    constructor(id, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules) {
+    constructor(id, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules, notificationmanager) {
         this.id = id
         this.owner = owner
         this.started = Date.now() / 1000
@@ -21,6 +21,7 @@ class Job {
         this.monitoredprocessgroups = monitoredprocessgroups
         this.monitoredartifacts = monitoredartifacts
         this.notificationrules = notificationrules
+        this.notificationmanager = notificationmanager
 
         this.brokers = brokers
         this.brokers.forEach(element => {
@@ -77,21 +78,21 @@ class Job {
 
         //Unsubscribe from engine updates
         this.monitoredprocesses.forEach(element => {
-            removeMonitoredProcess(element)
+            this.removeMonitoredProcess(element)
             //OBSERVER.removeEngine(element, onProcessEvent.bind(this))
         });
     }
 
     setPeriodicCall(functionref, period) {
-        this.periodicCalls.push(schedule.scheduleJob(` */${period} * * * * *`, functionref))
+        this.periodiccalls.push(schedule.scheduleJob(` */${period} * * * * *`, functionref))
     }
 
     onProcessEvent(message) {
         console.warn('This function should be overwritten')
     }
 
-    notifyStakeholders(messageObj) {
-
+    notifyStakeholders(processtype, instanceid, processperspective, errors) {
+        this.notificationmanager.notify(this.id, this.notificationrules, [...this.monitoredprocesses], this.monitoredartifacts, processtype, instanceid, processperspective, errors)
     }
 
     onGroupChange(processid, event) {
