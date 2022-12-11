@@ -2,10 +2,10 @@ var xml2js = require('xml2js');
 var fs = require('fs');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
-var CONTENTMANAGER = require('../contentmanager')
-var DDB = require('../database/databaseconnector')
+var CONTENTMANAGER = require('../egsm-common/database/contentmanager')
+var DDB = require('../egsm-common/database/databaseconnector')
 var MONITORING = require('../monitoring/monitoringmanager');
-var VALIDATOR = require('../validator')
+var VALIDATOR = require('../egsm-common/database/validator')
 var GROUPMAN = require('../monitoring/groupmanager');
 const OBSERVER = require('../monitoring/engineobserver');
 
