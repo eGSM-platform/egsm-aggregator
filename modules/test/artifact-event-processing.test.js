@@ -1,15 +1,10 @@
 const { ArtifactEventProcessing } = require('../monitoring/monitoringtypes/artifact-event-processing');
 const AUX = require('../egsm-common/auxiliary/auxiliary')
 const LOG = require('../egsm-common/auxiliary/logManager')
-var MQTTCOMM = require('../communication/mqttcommunication')
-var PRIM = require('../egsm-common/auxiliary/primitives')
-
-var broker = new PRIM.Broker('localhost', 1883, '', '')
 
 var DYNAMO = require('../egsm-common/database/dynamoconnector')
-var DB = require('../egsm-common/database/databaseconnector')
-
-var broker = new PRIM.Broker('localhost', 1883, '', '')
+var DB = require('../egsm-common/database/databaseconnector');
+const { ArtifactEvent, Artifact, ArtifactUsageEntry } = require('../egsm-common/auxiliary/primitives');
 
 async function initTables() {
     var promises = []
@@ -43,7 +38,6 @@ beforeAll(() => {
 
 beforeEach(async () => {
     LOG.setLogLevel(5)
-    MQTTCOMM.initPrimaryBrokerConnection(broker)
     await initTables()
 });
 
@@ -63,7 +57,7 @@ test('ArtifactEventProcessing - no Event and not Artifact in DB', async () => {
         type: 'Truck',
         id: 'abc-123'
     }
-    var job1 = new ArtifactEventProcessing('obs-1', [broker], 'owner', [artifact1], 2)
+    var job1 = new ArtifactEventProcessing('obs-1', 'owner', 2)
     await wait(3000)
     job1.terminate()
     var data = await DB.readArtifactUsageEntries('Truck/abc-123', '0', '999999999')
@@ -72,48 +66,16 @@ test('ArtifactEventProcessing - no Event and not Artifact in DB', async () => {
 })
 
 test('ArtifactEventProcessing - Unprocessed Events and not defined Artifacts in DB', async () => {
-    var artifact1 = {
-        type: 'Truck',
-        id: 'abc-123'
-    }
-    var eventDetailJson1 = {
-        timestamp: 100,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-001'
-    }
-    var eventDetailJson2 = {
-        timestamp: 500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-002'
-    }
-    var eventDetailJson3 = {
-        timestamp: 1000,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-003'
-    }
-    var eventDetailJson4 = {
-        timestamp: 1500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-004'
-    }
-    await DB.writeArtifactEvent(eventDetailJson1)
-    await DB.writeArtifactEvent(eventDetailJson2)
-    await DB.writeArtifactEvent(eventDetailJson3)
-    await DB.writeArtifactEvent(eventDetailJson4)
+    var event1 = new ArtifactEvent('Truck/abc-123', 'attached', 100, 'process_type1', '001', 'event-001')
+    var event2 = new ArtifactEvent('Truck/abc-123', 'detached', 500, 'process_type1', '002', 'event-002')
+    var event3 = new ArtifactEvent('Truck/abc-123', 'detached', 1000, 'process_type1', '001', 'event-003')
+    var event4 = new ArtifactEvent('Truck/abc-123', 'attached', 1500, 'process_type1', '002', 'event-004')
+    await DB.writeArtifactEvent(event1)
+    await DB.writeArtifactEvent(event2)
+    await DB.writeArtifactEvent(event3)
+    await DB.writeArtifactEvent(event4)
 
-    var job1 = new ArtifactEventProcessing('obs-1', [broker], 'owner', [artifact1], 2)
+    var job1 = new ArtifactEventProcessing('obs-1', 'owner', 2)
     await wait(3000)
     job1.terminate()
     var data = await DB.readArtifactUsageEntries('Truck/abc-123', '0', '999999999')
@@ -123,51 +85,20 @@ test('ArtifactEventProcessing - Unprocessed Events and not defined Artifacts in 
 
 
 test('ArtifactEventProcessing - Unprocessed Events and defined Artifact and Process instances in DB, Process Instance is not finished yet', async () => {
-    var artifact1 = {
-        type: 'Truck',
-        id: 'abc-123'
-    }
-    var eventDetailJson1 = {
-        timestamp: 100,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-001'
-    }
-    var eventDetailJson2 = {
-        timestamp: 500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-002'
-    }
-    var eventDetailJson3 = {
-        timestamp: 1000,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-003'
-    }
-    var eventDetailJson4 = {
-        timestamp: 1500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-004'
-    }
-    await DB.writeNewArtifactDefinition('Truck', 'abc-123', ['Company-1'], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', [], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', [], 'localhost', 1883)
-    await DB.writeArtifactEvent(eventDetailJson1)
-    await DB.writeArtifactEvent(eventDetailJson2)
-    await DB.writeArtifactEvent(eventDetailJson3)
-    await DB.writeArtifactEvent(eventDetailJson4)
+    var event1 = new ArtifactEvent('Truck/abc-123', 'attached', 100, 'process_type1', '001', 'event-001')
+    var event2 = new ArtifactEvent('Truck/abc-123', 'detached', 500, 'process_type1', '002', 'event-002')
+    var event3 = new ArtifactEvent('Truck/abc-123', 'detached', 1000, 'process_type1', '001', 'event-003')
+    var event4 = new ArtifactEvent('Truck/abc-123', 'attached', 1500, 'process_type1', '002', 'event-004')
 
-    var job1 = new ArtifactEventProcessing('obs-1', [broker], 'owner', [artifact1], 2)
+    await DB.writeNewArtifactDefinition('Truck', 'abc-123', ['Company-1'], 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', 'localhost', 1883)
+    await DB.writeArtifactEvent(event1)
+    await DB.writeArtifactEvent(event2)
+    await DB.writeArtifactEvent(event3)
+    await DB.writeArtifactEvent(event4)
+
+    var job1 = new ArtifactEventProcessing('obs-1', 'owner', 2)
     await wait(3000)
     job1.terminate()
     await wait(1000)
@@ -177,149 +108,57 @@ test('ArtifactEventProcessing - Unprocessed Events and defined Artifact and Proc
 })
 
 test('ArtifactEventProcessing - Unprocessed Events and defined Artifact and Process instances in DB, Process Instance Finished', async () => {
-    var artifact1 = {
-        type: 'Truck',
-        id: 'abc-123'
-    }
-    var eventDetailJson1 = {
-        timestamp: 100,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-001'
-    }
-    var eventDetailJson2 = {
-        timestamp: 500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-002'
-    }
-    var eventDetailJson3 = {
-        timestamp: 1000,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-003'
-    }
-    var eventDetailJson4 = {
-        timestamp: 200,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-004'
-    }
+    var event1 = new ArtifactEvent('Truck/abc-123', 'attached', 100, 'process_type1', '001', 'event-001')
+    var event2 = new ArtifactEvent('Truck/abc-123', 'detached', 500, 'process_type1', '002', 'event-002')
+    var event3 = new ArtifactEvent('Truck/abc-123', 'detached', 1000, 'process_type1', '001', 'event-003')
+    var event4 = new ArtifactEvent('Truck/abc-123', 'attached', 200, 'process_type1', '002', 'event-004')
+
     await DB.writeNewArtifactDefinition('Truck', 'abc-123', ['Company-1'], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', [], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', 'localhost', 1883)
     await DB.closeOngoingProcessInstance('process_type1', '001', 999, 'success')
     await DB.closeOngoingProcessInstance('process_type1', '002', 999, 'faulty')
-    await DB.writeArtifactEvent(eventDetailJson1)
-    await DB.writeArtifactEvent(eventDetailJson2)
-    await DB.writeArtifactEvent(eventDetailJson3)
-    await DB.writeArtifactEvent(eventDetailJson4)
+    await DB.writeArtifactEvent(event1)
+    await DB.writeArtifactEvent(event2)
+    await DB.writeArtifactEvent(event3)
+    await DB.writeArtifactEvent(event4)
 
-    var job1 = new ArtifactEventProcessing('obs-1', [broker], 'owner', [artifact1], 2)
+    var job1 = new ArtifactEventProcessing('obs-1', 'owner', 2)
     await wait(3000)
     job1.terminate()
     await wait(1000)
     var data = await DB.readArtifactUsageEntries('Truck/abc-123', '0', '999999999')
     var expected = [
-        {
-            "ARTIFACT_NAME": "Truck/abc-123",
-            "ATTACHED_TIME": "100",
-            "CASE_ID": "event-001_event-003",
-            "DETACHED_TIME": "1000",
-            "OUTCOME": "success",
-            "PROCESS_ID": "001",
-            "PROCESS_TYPE": "process_type1",
-        },
-        {
-            "ARTIFACT_NAME": "Truck/abc-123",
-            "ATTACHED_TIME": "200",
-            "CASE_ID": "event-004_event-002",
-            "DETACHED_TIME": "500",
-            "OUTCOME": "faulty",
-            "PROCESS_ID": "002",
-            "PROCESS_TYPE": "process_type1",
-        }]
+        new ArtifactUsageEntry('Truck/abc-123', 'event-001_event-003', 100, 1000, 'process_type1', '001', 'success'),
+        new ArtifactUsageEntry('Truck/abc-123', 'event-004_event-002', 200, 500, 'process_type1', '002', 'faulty')
+    ]
     expect(data).toEqual(expected)
 })
 
 test('ArtifactEventProcessing - Unprocessed Events and defined Artifact and Process instances in DB, Process Instance Finished, wait for 2 cycles', async () => {
-    var artifact1 = {
-        type: 'Truck',
-        id: 'abc-123'
-    }
-    var eventDetailJson1 = {
-        timestamp: 100,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-001'
-    }
-    var eventDetailJson2 = {
-        timestamp: 500,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-002'
-    }
-    var eventDetailJson3 = {
-        timestamp: 1000,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'detached',
-        process_type: 'process_type1',
-        process_id: '001',
-        event_id: 'event-003'
-    }
-    var eventDetailJson4 = {
-        timestamp: 200,
-        artifact_name: 'Truck/abc-123',
-        artifact_state: 'attached',
-        process_type: 'process_type1',
-        process_id: '002',
-        event_id: 'event-004'
-    }
+    var event1 = new ArtifactEvent('Truck/abc-123', 'attached', 100, 'process_type1', '001', 'event-001')
+    var event2 = new ArtifactEvent('Truck/abc-123', 'detached', 500, 'process_type1', '002', 'event-002')
+    var event3 = new ArtifactEvent('Truck/abc-123', 'detached', 1000, 'process_type1', '001', 'event-003')
+    var event4 = new ArtifactEvent('Truck/abc-123', 'attached', 200, 'process_type1', '002', 'event-004')
+
     await DB.writeNewArtifactDefinition('Truck', 'abc-123', ['Company-1'], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', [], 'localhost', 1883)
-    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', [], 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '001', ['stakeholder-1'], '10', 'localhost', 1883)
+    await DB.writeNewProcessInstance('process_type1', '002', ['stakeholder-2'], '20', 'localhost', 1883)
     await DB.closeOngoingProcessInstance('process_type1', '001', 999, 'success')
     await DB.closeOngoingProcessInstance('process_type1', '002', 999, 'faulty')
-    await DB.writeArtifactEvent(eventDetailJson1)
-    await DB.writeArtifactEvent(eventDetailJson2)
-    await DB.writeArtifactEvent(eventDetailJson3)
-    await DB.writeArtifactEvent(eventDetailJson4)
+    await DB.writeArtifactEvent(event1)
+    await DB.writeArtifactEvent(event2)
+    await DB.writeArtifactEvent(event3)
+    await DB.writeArtifactEvent(event4)
 
-    var job1 = new ArtifactEventProcessing('obs-1', [broker], 'owner', [artifact1], 1)
+    var job1 = new ArtifactEventProcessing('obs-1', 'owner', 1)
     await wait(2500)
     job1.terminate()
     await wait(1000)
     var data = await DB.readArtifactUsageEntries('Truck/abc-123', '0', '999999999')
     var expected = [
-        {
-            "ARTIFACT_NAME": "Truck/abc-123",
-            "ATTACHED_TIME": "100",
-            "CASE_ID": "event-001_event-003",
-            "DETACHED_TIME": "1000",
-            "OUTCOME": "success",
-            "PROCESS_ID": "001",
-            "PROCESS_TYPE": "process_type1",
-        },
-        {
-            "ARTIFACT_NAME": "Truck/abc-123",
-            "ATTACHED_TIME": "200",
-            "CASE_ID": "event-004_event-002",
-            "DETACHED_TIME": "500",
-            "OUTCOME": "faulty",
-            "PROCESS_ID": "002",
-            "PROCESS_TYPE": "process_type1",
-        }]
+        new ArtifactUsageEntry('Truck/abc-123', 'event-001_event-003', 100, 1000, 'process_type1', '001', 'success'),
+        new ArtifactUsageEntry('Truck/abc-123', 'event-004_event-002', 200, 500, 'process_type1', '002', 'faulty')
+    ]
     expect(data).toEqual(expected)
 })

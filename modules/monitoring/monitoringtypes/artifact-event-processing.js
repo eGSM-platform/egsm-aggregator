@@ -1,17 +1,16 @@
 var DB = require('../../egsm-common/database/databaseconnector')
 var LOG = require('../../egsm-common/auxiliary/logManager')
-const { Validator } = require('../validator')
 const { Job } = require('./job')
 
-module.id = "PRO_DEV_DET"
+module.id = "ARTIFACT_EV_PRO"
 
 class ArtifactEventProcessing extends Job {
     static initialized = false
-    constructor(id, brokers, owner, monitoredartifacts, frequency) {
+    constructor(id, owner, frequency) {
         if (ArtifactEventProcessing.initialized) {
             throw new Error('ArtifactEventProcessing is not allowed to start twice!');
         }
-        super(id, brokers, owner, monitoredartifacts, [], [], [], undefined)
+        super(id, [], owner, [], [], [], [], undefined)
         this.frequency = frequency
         this.setPeriodicCall(this.onPeriodElapsed.bind(this), frequency)
         this.initialized = true

@@ -5,7 +5,6 @@ var UUID = require('uuid');
 var MQTTCOMM = require('../communication/mqttcommunication')
 var DBCONFIG = require('../egsm-common/database/databaseconfig')
 var PRIM = require('../egsm-common/auxiliary/primitives');
-const { ChainableTemporaryCredentials } = require('aws-sdk');
 
 var broker = new PRIM.Broker('localhost', 1883, '', '')
 
@@ -87,6 +86,6 @@ test('onProcessEvent() - detect process deviation', async () => {
     expect(notifman.getLastNotification()).toEqual(expected)
 })
 
-STATUS:WORKER LOG SENDING 
-FORMAT may not be correct 
-also check databae dbase writeStageEvent and read
+//STATUS:WORKER LOG SENDING 
+//FORMAT may not be correct 
+//also check databae dbase writeStageEvent and read
