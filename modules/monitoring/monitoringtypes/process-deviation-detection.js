@@ -1,7 +1,7 @@
 var LOG = require('../../egsm-common/auxiliary/logManager')
 var CONNCOMM = require('../../egsm-common/config/connectionconfig')
 const { ProcessNotification } = require('../../egsm-common/auxiliary/primitives')
-const { Validator } = require('../validator')
+const { Validator } = require('../../egsm-common/auxiliary/validator')
 const { Job } = require('./job')
 
 module.id = "PRO_DEV_DET"

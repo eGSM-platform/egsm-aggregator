@@ -1,7 +1,7 @@
 var DB = require('../../egsm-common/database/databaseconnector')
 var LOG = require('../../egsm-common/auxiliary/logManager')
 var CONNCONF = require('../../egsm-common/config/connectionconfig')
-const { Validator } = require('../validator')
+const { Validator } = require('../../egsm-common/auxiliary/validator')
 const { Job } = require('./job')
 const { ArtifactNotification } = require('../../egsm-common/auxiliary/primitives')
 
