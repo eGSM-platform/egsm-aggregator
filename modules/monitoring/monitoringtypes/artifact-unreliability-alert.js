@@ -1,8 +1,10 @@
 var DB = require('../../egsm-common/database/databaseconnector')
 var LOG = require('../../egsm-common/auxiliary/logManager')
+var CONNCONF = require('../../egsm-common/config/connectionconfig')
 const { Validator } = require('../validator')
 const { Job } = require('./job')
 const { ArtifactNotification } = require('../../egsm-common/auxiliary/primitives')
+
 
 module.id = "ART_UNRE_A"
 
@@ -26,7 +28,7 @@ class ArtifactUnreliabilityAlert extends Job {
                     var errors = [{
                         type: 'artifact_faulty_rate',
                     }]
-                    var notification = new ArtifactNotification(this.id, message, artifact.type, artifact.id, errors)
+                    var notification = new ArtifactNotification(this.id, CONNCONF.getConfig().self_id, message, artifact.type, artifact.id, errors)
                     this.notificationmanager.notifyEntities(notification, this.notificationrules)
                 }
             })

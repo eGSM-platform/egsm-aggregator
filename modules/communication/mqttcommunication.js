@@ -7,7 +7,8 @@ var UUID = require("uuid");
 var MQTT = require("../egsm-common/communication/mqttconnector")
 var LOG = require('../egsm-common/auxiliary/logManager')
 var AUX = require('../egsm-common/auxiliary/auxiliary')
-var ROUTES = require('./routes')
+var CONNCONFIG = require('../egsm-common/config/connectionconfig');
+const { Broker } = require("../egsm-common/auxiliary/primitives");
 
 module.id = "MQTTCOMM"
 
@@ -30,6 +31,8 @@ var MQTT_USER_PW = undefined
 var REQUEST_PROMISES = new Map()
 var REQUEST_BUFFERS = new Map() // Request id -> Usage specific storage place (used only for specific type of requests)
 
+var MONITORING_MANAGER = undefined
+
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
     if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TOPIC_OUT && topic != TOPIC_SELF)) {
@@ -42,6 +45,9 @@ function onMessageReceived(hostname, port, topic, message) {
         LOG.logSystem('ERROR', `Error while parsing mqtt message: ${message}`, module.id)
         return
     }
+    if (!MONITORING_MANAGER) {
+        LOG.logSystem('WARNING', `Monitoring Manager has not been added to MQTT Communication module. Some features may no work as intended!`, module.id)
+    }
     //The message has been published by the supervisor to the shared SUPERVISOR_TOPIC_OUT
     //These messages have been delived to all other Aggregators too
     if (topic == SUPERVISOR_TOPIC_OUT) {
@@ -51,17 +57,29 @@ function onMessageReceived(hostname, port, topic, message) {
                 var response = {
                     request_id: msgJson['request_id'],
                     message_type: 'PONG',
-                    sender_id: TOPIC_SELF,
+                    sender_id: CONNCONFIG.getConfig().self_id,
                     payload: {
-                        hostname: ROUTES.getRESTCredentials()['hostname'],
-                        port: ROUTES.getRESTCredentials()['port'],
+                        hostname: 'NA',//ROUTES.getRESTCredentials()['hostname'],
+                        port: 0,//ROUTES.getRESTCredentials()['port'],
                         uptime: process.uptime(),
-                        activity_mumber: 10,
-                        capacity: 999
+                        activity_mumber: MONITORING_MANAGER.getNumberOfJobs(),
+                        capacity: MONITORING_MANAGER.getCapacity()
                     }
                 }
                 MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
                 break;
+            case 'NEW_JOB_SLOT':
+                LOG.logSystem('DEBUG', `NEW_JOB_SLOT requested`, module.id)
+                if (MONITORING_MANAGER.hasFreeSlot()) {
+                    var response = {
+                        request_id: msgJson['request_id'],
+                        free_slots: MONITORING_MANAGER.getCapacity() -MONITORING_MANAGER.getNumberOfJobs(),
+                        message_type: 'NEW_JOB_SLOT_RESP',
+                        sender_id: CONNCONFIG.getConfig().self_id
+                    }
+                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                }
+                break
         }
     }
     else if (topic == AGGREGATOR_GLOBAL_TOPIC_IN) {
@@ -78,7 +96,31 @@ function onMessageReceived(hostname, port, topic, message) {
 
     //These messages were sent by the Supervisor or by another Aggregators and only this Aggregator is receiveing it
     else if (topic == TOPIC_SELF) {
+        switch (msgJson['message_type']) {
+            case 'NEW_JOB': {
+                LOG.logSystem('DEBUG', `NEW_JOB requested`, module.id)
+                var result = MONITORING_MANAGER.startJob(msgJson['payload']['jobconfig'])//createNewEngine(msgJson['payload'])
+                var response = {
+                    request_id: msgJson['request_id'],
+                    payload: { result: result },
+                    message_type: 'NEW_JOB_RESP'
+                }
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, TOPIC_SELF, JSON.stringify(response))
+                break;
+            }
+            case 'GET_JOB_LIST': {
+                LOG.logSystem('DEBUG', `GET_JOB_LIST requested`, module.id)
+                var resPayload = MONITORING_MANAGER.getAllJobs()
+                var response = {
+                    request_id: msgJson['request_id'],
+                    payload: resPayload,
+                    message_type: 'GET_JOB_LIST_RESP'
+                }
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                break;
+            }
 
+        }
     }
 }
 
@@ -142,6 +184,11 @@ async function initPrimaryBrokerConnection(broker) {
     return TOPIC_SELF
 }
 
+//This is similar to Observer design pattern and necessary to avoid circular dependency of MQTT module
+function setMonitoringManager(manager) {
+    MONITORING_MANAGER = manager
+}
+
 async function discoverProcessGroupMembers(groupid) {
     var request_id = UUID.v4();
     var message = {
@@ -178,5 +225,6 @@ async function discoverProcessGroupMembers(groupid) {
 module.exports = {
     checkIdCandidate: checkIdCandidate,
     initPrimaryBrokerConnection: initPrimaryBrokerConnection,
-    discoverProcessGroupMembers: discoverProcessGroupMembers
+    discoverProcessGroupMembers: discoverProcessGroupMembers,
+    setMonitoringManager: setMonitoringManager
 }

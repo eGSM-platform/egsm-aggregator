@@ -15,7 +15,7 @@ beforeAll(() => {
 });
 
 beforeEach(async () => {
-    DBCONFIG.initDatabaseConnection()
+    DBCONFIG.initDatabaseConnection('localhost','8000','local','fakeMyKeyId','fakeSecretAccessKey')
     MQTTCOMM.initPrimaryBrokerConnection(broker)
     //OBS.addMonitoredBroker(broker)
 });
@@ -77,7 +77,7 @@ test('onProcessEvent() - detect process deviation', async () => {
 
     }]
     var message = `Process deviation detected at [Process-type-1/instnace-1]__truck]!`
-    var expected = new ProcessNotification('obs-1', message, 'Process-type-1', 'instnace-1', 'truck', ['Process-type-1/instnace-1'], errorsExpected)
+    var expected = new ProcessNotification('obs-1',undefined, message, 'Process-type-1', 'instnace-1', 'truck', ['Process-type-1/instnace-1'], errorsExpected)
     expected.id = ''
     expected.timestamp = 0
     expect(data).toEqual(expected)

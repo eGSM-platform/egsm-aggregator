@@ -4,7 +4,7 @@ const LOG = require('../egsm-common/auxiliary/logManager')
 
 var DYNAMO = require('../egsm-common/database/dynamoconnector')
 var DB = require('../egsm-common/database/databaseconnector');
-const { ArtifactEvent, Artifact, ArtifactUsageEntry, FaultyRateWindow } = require('../egsm-common/auxiliary/primitives');
+const {Artifact, FaultyRateWindow } = require('../egsm-common/auxiliary/primitives');
 
 async function initTables() {
     var promises = []

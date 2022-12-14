@@ -1,4 +1,5 @@
 var LOG = require('../../egsm-common/auxiliary/logManager')
+var CONNCOMM = require('../../egsm-common/config/connectionconfig')
 const { ProcessNotification } = require('../../egsm-common/auxiliary/primitives')
 const { Validator } = require('../validator')
 const { Job } = require('./job')
@@ -15,7 +16,7 @@ class ProcessDeviationDetection extends Job {
         if (errors.length > 0) {
             console.debug(`Faulty stage of process [${messageObj.processtype}/${messageObj.instanceid}]__${messageObj.perspective} detected: ${JSON.stringify(errors)}`)
             var message = `Process deviation detected at [${messageObj.processtype}/${messageObj.instanceid}]__${messageObj.perspective}]!`
-            var notification = new ProcessNotification(this.id, message, messageObj.processtype, messageObj.instanceid, messageObj.perspective, [...this.monitoredprocesses], errors)
+            var notification = new ProcessNotification(this.id, CONNCOMM.getConfig().self_id, message, messageObj.processtype, messageObj.instanceid, messageObj.perspective, [...this.monitoredprocesses], errors)
             this.notificationmanager.notifyEntities(notification, this.notificationrules)
         }
     }

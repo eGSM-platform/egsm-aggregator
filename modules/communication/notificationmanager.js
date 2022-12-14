@@ -2,13 +2,12 @@ var LOG = require('../egsm-common/auxiliary/logManager')
 var DDB = require('../egsm-common/database/databaseconnector')
 var MQTT = require('../egsm-common/communication/mqttconnector')
 var MQTT_COMM = require('../communication/mqttcommunication')
+var CONNCONFIG = require('../egsm-common/config/connectionconfig')
 
 module.id = 'NOTIFMAN'
 
 class NotificationManager {
-    constructor() {
-
-    }
+    constructor() {}
 
     async notifyEntities(notification, notificationrules) {
         notification.notified = new Set()
@@ -93,7 +92,7 @@ class NotificationManager {
                 //NOTE: For now only notification through MQTT is supported
                 //Notification is published to: [Stakeholder Name]/notification topic
                 var notificationJson = JSON.stringify(notification)
-                var broker = MQTT_COMM.getPrimaryBroker()
+                var broker = CONNCONFIG.getConfig().primary_broker
                 MQTT.publishTopic(broker.host, broker.port, stakeholdername + '/notification', notificationJson)
             }
         })

@@ -1,12 +1,15 @@
 var LOG = require('../egsm-common/auxiliary/logManager')
 
+var MQTTCOMM = require('../communication/mqttcommunication')
 const { JobFactory } = require('./jobfactory');
 const { NotificationManager } = require('../communication/notificationmanager');
 
+
+const MAX_JOBS = 500
+
 module.id = "MONITORMAN"
 
-
-class PrivateMonitoringManager {
+class MonitoringManager {
     constructor() {
         this.notification_manager = new NotificationManager()
         this.job_factory = new JobFactory(this.notification_manager)
@@ -17,21 +20,21 @@ class PrivateMonitoringManager {
     startJob(jobconfig) {
         var newjob = this.job_factory.buildJob(jobconfig)
         if (newjob) {
-            LOG.logSystem('DEBUG', `New job [${jobid}] started`)
+            LOG.logSystem('DEBUG', `New job [${jobid}] started`, module.id)
             this.jobs.set(newjob.id, newjob)
             return
         }
-        LOG.logSystem('WARNING', `Could not start Monitoring Activity [${jobid}]...`)
+        LOG.logSystem('WARNING', `Could not start Monitoring Activity...`, module.id)
     }
 
     stopJob(jobid) {
         if (this.jobs.has(jobid)) {
-            LOG.logSystem('DEBUG', `Stopping Monitoring Activity ${jobid}`)
+            LOG.logSystem('DEBUG', `Stopping Monitoring Activity ${jobid}`, module.id)
             this.jobs.get(jobid).terminate()
             this.jobs.delete(jobid)
             return
         }
-        LOG.logSystem('WARNING', `Monitoring Activity ${jobid} is not defined, cannot be removed`)
+        LOG.logSystem('WARNING', `Monitoring Activity ${jobid} is not defined, cannot be removed`, module.id)
     }
 
     getAllJobs() {
@@ -44,15 +47,26 @@ class PrivateMonitoringManager {
         }
         return undefined
     }
-}
 
-class MonitoringManager {
-    constructor() {
-        throw new Error('Use MonitoringManager.getInstance()');
+    hasFreeSlot() {
+        if (this.jobs.size < MAX_JOBS) {
+            return true
+        }
+        return false
     }
+
+    getCapacity() {
+        return MAX_JOBS
+    }
+
+    getNumberOfJobs() {
+        return this.jobs.size
+    }
+
     static getInstance() {
         if (!MonitoringManager.instance) {
-            MonitoringManager.instance = new PrivateMonitoringManager();
+            MonitoringManager.instance = new MonitoringManager();
+            MQTTCOMM.setMonitoringManager(MonitoringManager.instance)
         }
         return MonitoringManager.instance;
     }

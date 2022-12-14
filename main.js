@@ -1,43 +1,28 @@
 var fs = require('fs');
 
-var DYNAMO = require('./modules/egsm-common/database/dynamoconnector')
 var LOG = require('./modules/egsm-common/auxiliary/logManager')
-var AUX = require('./modules/egsm-common/auxiliary/auxiliary')
-var CONFIG = require('./modules/config/autoconfig')
 var MQTTCOMM = require('./modules/communication/mqttcommunication')
-var PRIM = require('./modules/egsm-common/auxiliary/primitives')
-var DBCONFIG = require('./modules/egsm-common/database/databaseconfig')
+var DBCONFIG = require('./modules/egsm-common/database/databaseconfig');
+var CONNCONFIG = require('./modules/egsm-common/config/connectionconfig');
 
+const CONFIG_FILE = './config.xml'
 module.id = "MAIN"
-
-var AGGREGATOR_ID = ''
 
 LOG.logSystem('DEBUG', 'Aggregator started...', module.id)
 
-DBCONFIG.initDatabaseConnection()
+var filecontent = fs.readFileSync(CONFIG_FILE, 'utf8')
+
+CONNCONFIG.applyConfig(filecontent)
+
+DBCONFIG.initDatabaseConnection(CONNCONFIG.getConfig().database_host, CONNCONFIG.getConfig().database_port, CONNCONFIG.getConfig().database_region,
+    CONNCONFIG.getConfig().database_access_key_id, CONNCONFIG.getConfig().database_secret_access_key)
+
+//var monitoringManager = MonitoringManager.getInstance()
 
 LOG.logSystem('DEBUG', 'Finding a unique ID by active cooperation with peers...', module.id)
-var broker = new PRIM.Broker('localhost', 1883, '', '')
-MQTTCOMM.initPrimaryBrokerConnection(broker).then((result) => {
-    AGGREGATOR_ID = result
-    LOG.logSystem('DEBUG', `Unique ID found: [${AGGREGATOR_ID}]`, module.id)
+
+MQTTCOMM.initPrimaryBrokerConnection(CONNCONFIG.getConfig().primary_broker).then((result) => {
+    CONNCONFIG.setSelfId(result)
+    LOG.logSystem('DEBUG', `Unique ID found: [${result}]`, module.id)
+    LOG.logSystem('DEBUG', 'Aggregator initialization ready!', module.id)
 })
-
-const cmdArgs = process.argv.slice(2);
-//Check if there is any command line parameter to evaluate
-LOG.logSystem('DEBUG', 'Evaluating input parameters...', module.id)
-if (cmdArgs.length > 0) {
-    var configCommands = []
-    for (var i = 0; i < cmdArgs.length; i++) {
-        var elements = cmdArgs[i].split(' ')
-        if (elements[0] == '--content_config' || elements[0] == '--process_type_config' || elements[0] == '--monitored_broker_config' || elements[0] == '--process_instance_config' || elements[0] == '--process_group_config' || elements[0] == '--monitoring_config') {
-            var filecontent = fs.readFileSync(elements[1], 'utf8')
-            configCommands.push({ type: elements[0], content: filecontent })
-        }
-    }
-    configCommands.forEach(element => {
-        CONFIG.executeConfig(element.type, element.content)
-    })
-}
-
-LOG.logSystem('DEBUG', 'Input command(s) executed', module.id)
