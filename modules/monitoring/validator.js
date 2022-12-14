@@ -19,6 +19,13 @@ class Validator {
         }
         return errors
     }
+
+    static validateArtifactFaultyRate(faulryrate, threshold) {
+        if (faulryrate >= threshold) {
+            return false
+        }
+        return true
+    }
 }
 
 module.exports = {

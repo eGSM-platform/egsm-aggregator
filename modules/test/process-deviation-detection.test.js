@@ -5,6 +5,7 @@ var UUID = require('uuid');
 var MQTTCOMM = require('../communication/mqttcommunication')
 var DBCONFIG = require('../egsm-common/database/databaseconfig')
 var PRIM = require('../egsm-common/auxiliary/primitives');
+const { ProcessNotification } = require('../egsm-common/auxiliary/primitives');
 
 var broker = new PRIM.Broker('localhost', 1883, '', '')
 
@@ -30,24 +31,21 @@ async function wait(delay) {
 class MockNotificationManager {
     constructor() {
         this.notification = undefined
+        this.notification_rules = undefined
     }
-    notify(id, notificationrules, monitoredprocesses, monitoredartifacts, processtype, instanceid, processperspective, errors) {
-        this.notification = {
-            id: id,
-            notificationrules: notificationrules,
-            monitoredprocesses: monitoredprocesses,
-            monitoredartifacts: monitoredartifacts,
-            processtype: processtype,
-            instanceid: instanceid,
-            processperspective: processperspective,
-            errors: errors
-        }
+    notifyEntities(notification, notificationrules) {
+        this.notification = notification
+        this.notification_rules = notificationrules
     }
     reset() {
         this.notification = undefined
+        this.notification_rules = undefined
     }
     getLastNotification() {
         return this.notification
+    }
+    getLastNotificationRules() {
+        return this.notification_rules
     }
 }
 
@@ -68,22 +66,22 @@ test('onProcessEvent() - detect process deviation', async () => {
         }
     }
     instance.onProcessEvent(messageObj)
-    var expected = {
-        id: 'obs-1',
-        notificationrules: ['NOTIFY_ALL'],
-        monitoredprocesses: ['Process-type-1/instnace-1'],
-        monitoredartifacts: [],
-        processtype: 'Process-type-1',
-        instanceid: 'instnace-1',
-        processperspective: 'truck',
-        errors: [{
-            type: 'compliance',
-            stage: 'Stage_A',
-            value: 'OutOfOrder',
+    data = notifman.getLastNotification()
+    data.id = ''
+    data.timestamp = 0
 
-        }]
-    }
-    expect(notifman.getLastNotification()).toEqual(expected)
+    var errorsExpected = [{
+        type: 'compliance',
+        stage: 'Stage_A',
+        value: 'OutOfOrder',
+
+    }]
+    var message = `Process deviation detected at [Process-type-1/instnace-1]__truck]!`
+    var expected = new ProcessNotification('obs-1', message, 'Process-type-1', 'instnace-1', 'truck', ['Process-type-1/instnace-1'], errorsExpected)
+    expected.id = ''
+    expected.timestamp = 0
+    expect(data).toEqual(expected)
+    expect(notifman.getLastNotificationRules()).toEqual(['NOTIFY_ALL'])
 })
 
 //STATUS:WORKER LOG SENDING 
