@@ -35,7 +35,7 @@ var MONITORING_MANAGER = undefined
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
-    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TOPIC_OUT && topic != TOPIC_SELF)) {
+    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TOPIC_OUT && topic != TOPIC_SELF && topic != AGGREGATOR_GLOBAL_TOPIC_IN)) {
         LOG.logSystem('DEBUG', `Reveived message is not intended to handle here`, module.id)
         return
     }
@@ -73,7 +73,7 @@ function onMessageReceived(hostname, port, topic, message) {
                 if (MONITORING_MANAGER.hasFreeSlot()) {
                     var response = {
                         request_id: msgJson['request_id'],
-                        free_slots: MONITORING_MANAGER.getCapacity() -MONITORING_MANAGER.getNumberOfJobs(),
+                        free_slots: MONITORING_MANAGER.getCapacity() - MONITORING_MANAGER.getNumberOfJobs(),
                         message_type: 'NEW_JOB_SLOT_RESP',
                         sender_id: CONNCONFIG.getConfig().self_id
                     }
@@ -87,7 +87,7 @@ function onMessageReceived(hostname, port, topic, message) {
             case 'PROCESS_GROUP_MEMBER_DISCOVERY_RESP': {
                 LOG.logSystem('DEBUG', `PROCESS_GROUP_MEMBER_DISCOVERY_RESP message received, request_id: [${msgJson['request_id']}]`, module.id)
                 if (REQUEST_PROMISES.has(msgJson['request_id'])) {
-                    REQUEST_BUFFERS.get(msgJson['request_id']).push(...msgJson['member_engines'])
+                    REQUEST_BUFFERS.get(msgJson['request_id']).push(...msgJson['payload']['engines'])
                 }
                 break;
             }
@@ -181,6 +181,7 @@ async function initPrimaryBrokerConnection(broker) {
         }
     }
     MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_OUT)
+    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_IN)
     return TOPIC_SELF
 }
 
@@ -189,12 +190,12 @@ function setMonitoringManager(manager) {
     MONITORING_MANAGER = manager
 }
 
-async function discoverProcessGroupMembers(groupid) {
+async function discoverProcessGroupMembers(rules) {
     var request_id = UUID.v4();
     var message = {
         "request_id": request_id,
         "message_type": 'PROCESS_GROUP_MEMBER_DISCOVERY',
-        "group_id": groupid
+        "payload": { "rules": rules }
     }
     MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_OUT, JSON.stringify(message))
     var promise = new Promise(async function (resolve, reject) {

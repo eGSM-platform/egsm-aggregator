@@ -49,11 +49,11 @@ async function subscribeGroupChanges(groupid, onchange) {
                 }
                 //Group found in DB, discovering online processes
                 LOG.logSystem('DEBUG', `Requested Process Group [${groupid}] is found in the Database`)
-                MQTTCONN.discoverProcessGroupMembers(groupid).then((processes) => {
+                MQTTCONN.discoverProcessGroupMembers(JSON.parse(groupData.membership_rules)).then((processes) => {
                     LOADED_GROUPS.set(groupid, { membership_rules: JSON.parse(groupData.membership_rules), member_processes: new Set(...processes), onchange: new Set([onchange]) })
                     console.log('LOADED:' + JSON.stringify(LOADED_GROUPS))
                     return resolve(processes)
-                })
+                })  
             })
         }
     });
