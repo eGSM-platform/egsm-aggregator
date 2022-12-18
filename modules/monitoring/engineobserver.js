@@ -40,6 +40,9 @@ function removeMonitoredBroker(broker) {
 }
 
 function onMessageReceived(hostname, port, topic, message) {
+    if(topic != TOPIC_PROCESS_LIFECYCLE){
+        return
+    }
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
     try {
         var msgJson = JSON.parse(message.toString())

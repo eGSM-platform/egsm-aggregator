@@ -48,6 +48,18 @@ class MonitoringManager {
         return undefined
     }
 
+    getJobInfo(jobid){
+        if (this.jobs.has(jobid)) {
+            return {
+                job_id: this.jobs.get(jobid).id,
+                owner: this.jobs.get(jobid).owner,
+                //...
+                //Add properties what needed
+            }
+        }
+        return undefined
+    }
+
     hasFreeSlot() {
         if (this.jobs.size < MAX_JOBS) {
             return true
