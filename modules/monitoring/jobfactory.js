@@ -1,6 +1,7 @@
 const { ArtifactUsageStatisticProcessing } = require("./monitoringtypes/artifact-usage-statistic-processing")
 const { ArtifactUnreliabilityAlert } = require("./monitoringtypes/artifact-unreliability-alert")
 const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviation-detection")
+var CONNCONF = require('../egsm-common/config/connectionconfig')
 
 class JobFactory {
     constructor(notificationmanager) {
@@ -27,7 +28,8 @@ class JobFactory {
                     return new ArtifactUnreliabilityAlert(id, owner, monitoredartifacts, faultinessthreshold, windowsize, frequency, notificationrules, this.notification_manager)
                 }
                 case 'process-deviation-detection': {
-                    var brokers = config['brokers']
+                    //var brokers = config['brokers']
+                    var brokers = [CONNCONF.getConfig().primary_broker]
                     var monitored = config['monitored']
                     var monitoredprocessgroups = config['monitoredprocessgroups']
                     var notificationrules = config['notificationrules']

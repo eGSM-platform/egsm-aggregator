@@ -35,7 +35,7 @@ class ArtifactUsageStatisticProcessing extends Job {
         //console.log(`ArtifactUsageStatisticProcessing onPeriodElapsed called`)
 
         this.monitoredartifacts.forEach(element => {
-            //console.log(`Processing Artifact ${element}`)
+            console.log(`Processing Artifact ${element}`)
             DB.readArtifactDefinition(element.type, element.id).then((artifact) => {
                 if (artifact == undefined) {
                     console.log('No artifact definition found')

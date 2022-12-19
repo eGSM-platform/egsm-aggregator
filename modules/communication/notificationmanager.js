@@ -7,7 +7,7 @@ var CONNCONFIG = require('../egsm-common/config/connectionconfig')
 module.id = 'NOTIFMAN'
 
 class NotificationManager {
-    constructor() {}
+    constructor() { }
 
     async notifyEntities(notification, notificationrules) {
         notification.notified = new Set()
@@ -93,7 +93,7 @@ class NotificationManager {
                 //Notification is published to: [Stakeholder Name]/notification topic
                 var notificationJson = JSON.stringify(notification)
                 var broker = CONNCONFIG.getConfig().primary_broker
-                MQTT.publishTopic(broker.host, broker.port, stakeholdername + '/notification', notificationJson)
+                MQTT.publishTopic(broker.host, broker.port, 'notification/' + stakeholdername, notificationJson)
             }
         })
     }

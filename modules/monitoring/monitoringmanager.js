@@ -20,7 +20,7 @@ class MonitoringManager {
     startJob(jobconfig) {
         var newjob = this.job_factory.buildJob(jobconfig)
         if (newjob) {
-            LOG.logSystem('DEBUG', `New job [${jobid}] started`, module.id)
+            LOG.logSystem('DEBUG', `New job [${jobconfig.id}] started`, module.id)
             this.jobs.set(newjob.id, newjob)
             return
         }
