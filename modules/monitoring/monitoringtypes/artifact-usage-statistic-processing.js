@@ -25,7 +25,7 @@ class ArtifactUsageStatisticProcessing extends Job {
         if (ArtifactUsageStatisticProcessing.initialized) {
             throw new Error('ArtifactUsageStatisticProcessing is not allowed to start twice!');
         }
-        super(id, [], owner, [], [], monitoredartifacts, [], undefined)
+        super(id, 'artifact-usage0statistic-processing', [], owner, [], [], monitoredartifacts, [], undefined)
         this.frequency = frequency
         this.setPeriodicCall(this.onPeriodElapsed.bind(this), frequency)
         this.initialized = true

@@ -13,8 +13,9 @@ class Job {
      * @param {Artifact[]} monitoredartifacts
      * @param {string[]} notificationrules 
      */
-    constructor(id, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules, notificationmanager) {
+    constructor(id,jobtype, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules, notificationmanager) {
         this.id = id
+        this.job_type = jobtype
         this.owner = owner
         this.started = Date.now() / 1000
         this.monitoredprocesses = new Set()

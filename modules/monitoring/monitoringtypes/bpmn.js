@@ -8,7 +8,7 @@ module.id = "BPMN"
 
 class BpmnJob extends Job {
     constructor(id, brokers, owner, monitored, monitoredprocessgroups, notificationrules, notificationmanager) {
-        super(id, brokers, owner, monitored, monitoredprocessgroups, [], notificationrules, notificationmanager)
+        super(id, 'bpmn', brokers, owner, monitored, monitoredprocessgroups, [], notificationrules, notificationmanager)
     }
 
     onProcessEvent(messageObj) {

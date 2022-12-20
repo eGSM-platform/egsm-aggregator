@@ -10,7 +10,7 @@ class ArtifactEventProcessing extends Job {
         if (ArtifactEventProcessing.initialized) {
             throw new Error('ArtifactEventProcessing is not allowed to start twice!');
         }
-        super(id, [], owner, [], [], [], [], undefined)
+        super(id,'artifact-event-processing', [], owner, [], [], [], [], undefined)
         this.frequency = frequency
         this.setPeriodicCall(this.onPeriodElapsed.bind(this), frequency)
         this.initialized = true

@@ -10,7 +10,7 @@ module.id = "ART_UNRE_A"
 
 class ArtifactUnreliabilityAlert extends Job {
     constructor(id, owner, monitoredartifacts, faultinessthreshold, windowsize, frequency, notificationrules, notificationmanager) {
-        super(id, [], owner, [], [], monitoredartifacts, notificationrules, notificationmanager)
+        super(id, 'artifact-unreliabiliry-alert', [], owner, [], [], monitoredartifacts, notificationrules, notificationmanager)
         this.faultinessthreshold = faultinessthreshold
         this.windowsize = windowsize
         this.frequency = frequency
@@ -28,7 +28,7 @@ class ArtifactUnreliabilityAlert extends Job {
                     var errors = [{
                         type: 'artifact_faulty_rate',
                     }]
-                    var notification = new ArtifactNotification(this.id, CONNCONF.getConfig().self_id, message, artifact.type, artifact.id, errors)
+                    var notification = new ArtifactNotification(this.id, CONNCONF.getConfig().self_id, this.job_type, message, artifact.type, artifact.id, errors)
                     this.notificationmanager.notifyEntities(notification, this.notificationrules)
                 }
             })
