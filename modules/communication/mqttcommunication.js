@@ -88,7 +88,7 @@ function onMessageReceived(hostname, port, topic, message) {
                         request_id: msgJson['request_id'],
                         message_type: 'SEARCH',
                         sender_id: CONNCONFIG.getConfig().self_id,
-                        payload: { job: MONITORING_MANAGER.getJobInfo(msgJson['payload']['job_id']) }
+                        payload: { job: MONITORING_MANAGER.getJobInfo(msgJson['payload']['job_id']) },
                     }
                     MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
                 }

@@ -1,6 +1,7 @@
 var LOG = require('../egsm-common/auxiliary/logManager')
 
 var MQTTCOMM = require('../communication/mqttcommunication')
+var CONNCONFIG = require('../egsm-common/config/connectionconfig')
 const { JobFactory } = require('./jobfactory');
 const { NotificationManager } = require('../communication/notificationmanager');
 
@@ -13,7 +14,7 @@ class MonitoringManager {
     constructor() {
         this.notification_manager = new NotificationManager()
         this.job_factory = new JobFactory(this.notification_manager)
-
+        this.instance = undefined
         this.jobs = new Map()
     }
 
@@ -21,7 +22,7 @@ class MonitoringManager {
         var newjob = this.job_factory.buildJob(jobconfig)
         if (newjob) {
             LOG.logSystem('DEBUG', `New job [${jobconfig.id}] started`, module.id)
-            this.jobs.set(newjob.id, newjob)
+            this.jobs.set(jobconfig.id, newjob)
             return
         }
         LOG.logSystem('WARNING', `Could not start Monitoring Activity...`, module.id)
@@ -48,15 +49,17 @@ class MonitoringManager {
         return undefined
     }
 
-    getJobInfo(jobid){
+    getJobInfo(jobid) {
         if (this.jobs.has(jobid)) {
+            console.log('JOB FOUND')
             return {
-                job_id: this.jobs.get(jobid).id,
+                job_id: jobid,
                 owner: this.jobs.get(jobid).owner,
-                //...
-                //Add properties what needed
+                host: CONNCONFIG.getConfig().socket_host,
+                port: CONNCONFIG.getConfig().socket_port,
             }
         }
+        console.warn('Job id not found ' + jobid)
         return undefined
     }
 

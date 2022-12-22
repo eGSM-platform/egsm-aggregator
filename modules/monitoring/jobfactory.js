@@ -2,6 +2,7 @@ const { ArtifactUsageStatisticProcessing } = require("./monitoringtypes/artifact
 const { ArtifactUnreliabilityAlert } = require("./monitoringtypes/artifact-unreliability-alert")
 const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviation-detection")
 var CONNCONF = require('../egsm-common/config/connectionconfig')
+const { BpmnJob } = require("./monitoringtypes/bpmn/bpmn-job")
 
 class JobFactory {
     constructor(notificationmanager) {
@@ -35,11 +36,17 @@ class JobFactory {
                     var notificationrules = config['notificationrules']
                     return new ProcessDeviationDetection(id, brokers, owner, monitored, monitoredprocessgroups, notificationrules, this.notification_manager)
                 }
+                case 'bpmn-job': {
+                    var monitored = config['monitored']
+                    var notificationrules = config['notificationrules']
+                    return new BpmnJob(config['id'], [], 'asd', monitored, [], notificationrules, this.notification_manager)
+                }
                 //Add further types when implemented!
                 default:
                     return undefined
             }
         } catch (error) {
+            console.warn(error)
             return undefined
         }
     }

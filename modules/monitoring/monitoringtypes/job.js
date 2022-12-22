@@ -1,6 +1,7 @@
 const schedule = require('node-schedule');
 const OBSERVER = require('../engineobserver')
 const GROUPMAN = require('../groupmanager')
+var EventEmitter = require('events')
 
 class Job {
     /**
@@ -13,7 +14,7 @@ class Job {
      * @param {Artifact[]} monitoredartifacts
      * @param {string[]} notificationrules 
      */
-    constructor(id,jobtype, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules, notificationmanager) {
+    constructor(id, jobtype, brokers, owner, monitored, monitoredprocessgroups, monitoredartifacts, notificationrules, notificationmanager) {
         this.id = id
         this.job_type = jobtype
         this.owner = owner
@@ -23,6 +24,7 @@ class Job {
         this.monitoredartifacts = monitoredartifacts
         this.notificationrules = notificationrules
         this.notificationmanager = notificationmanager
+        this.eventEmitter = new EventEmitter();
 
         this.brokers = brokers
         this.brokers.forEach(element => {
@@ -89,6 +91,14 @@ class Job {
     }
 
     onProcessEvent(message) {
+        console.warn('This function should be overwritten')
+    }
+
+    triggerUpdateEvent() {
+        console.warn('This function should be overwritten')
+    }
+
+    getDetails() {
         console.warn('This function should be overwritten')
     }
 
