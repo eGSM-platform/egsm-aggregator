@@ -10,7 +10,7 @@ class EgsmModel {
         this.event_queue = []
         this.changed_stages = []
         this.rule_violations = []
-        this.buildModel(modelXml)
+        this._buildModel(modelXml)
         this.event_emitter = new EventEmitter()
     }
 
@@ -25,16 +25,16 @@ class EgsmModel {
         //- apply the states from the snapshot
     }
 
-    parseStageRecursive(stage, parent) {
+    _parseStageRecursive(stage, parent) {
         var children = stage['ca:SubStage'] || []
         this.stages.set(stage['$'].id, new EgsmStage(stage['$'].id, stage['$'].name, parent, undefined))
         for (var key in children) {
             this.stages.get(stage['$'].id).addChild(children[key]['$'].id)
-            this.parseStageRecursive(children[key], stage['$'].id)
+            this._parseStageRecursive(children[key], stage['$'].id)
         }
     }
 
-    buildModel() {
+    _buildModel() {
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
             if (err) {
@@ -42,10 +42,8 @@ class EgsmModel {
             }
             var roots = result['ca:CompositeApplicationType']['ca:Component'][0]['ca:GuardedStageModel'][0]['ca:Stage'];
             for (var root in roots) {
-                console.log(roots[root]['$'].id)
-                console.log(context.model_roots)
                 context.model_roots.push(roots[root]['$'].id)
-                context.parseStageRecursive(roots[root], 'NONE')
+                context._parseStageRecursive(roots[root], 'NONE')
             }
         });
     }
