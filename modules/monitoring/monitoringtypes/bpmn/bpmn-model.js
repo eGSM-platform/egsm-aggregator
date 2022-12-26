@@ -9,6 +9,7 @@ class BpmnModel {
         this.events = new Map() //id -> BpmnEvent
         this.connections = new Map() //id -> BpmnConnection
         this.gateways = new Map() // id-> BpmnGateway
+        this.lifecycle_stage = 'CREATED' //CREATED-RUNNING-ACTIVE-COMPLETED
 
         this._buildModel()
     }
@@ -86,6 +87,16 @@ class BpmnModel {
                 context.events.set(intermediateCatchEvents[key]['$'].id, newEvent)
             }
         });
+    }
+
+    setLifecycle(newStage) {
+        this.lifecycle_stage = newStage
+    }
+
+    setTaskState(taskId, newState) {
+        if (this.stages.has(taskId)) {
+            this.stages.get(taskId).update(newState)
+        }
     }
 }
 
