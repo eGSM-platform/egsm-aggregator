@@ -1,8 +1,13 @@
 class EgsmStage {
-    constructor(id, name, type, parent) {
+    constructor(id, name, parent, type) {
         this.id = id
         this.name = name
-        this.type = type
+        if (!type) {
+            this.type = this.determineStageType()
+        }
+        else {
+            this.type = type
+        }
         this.status = "regular"
         this.state = "unopened"
         this.compliance = "onTime"
@@ -23,6 +28,10 @@ class EgsmStage {
         }
     }
 
+    addChild(child) {
+        this.children.push(child)
+    }
+
     propagateCondition(condition) {
         this.propagated_conditions.add(condition)
     }
@@ -36,6 +45,25 @@ class EgsmStage {
         this.status = "regular"
         this.state = "unopened"
         this.compliance = "onTime"
+    }
+
+    determineStageType() {
+        if (this.id.includes('iteration')) {
+            return 'ITERATION'
+        }
+        else if (this.id.includes('SequenceFlow')) {
+            return 'SEQUENCE'
+        }
+        else if (this.id.includes('Parallel')) {
+            return 'PARALLEL'
+        }
+        else if (this.id.includes('ExclusiveGateway')) {
+            return 'EXCLUSIVE'
+        }
+        else {
+            return 'ACTIVITY'
+        }
+
     }
 }
 
