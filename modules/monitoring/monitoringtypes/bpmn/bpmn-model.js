@@ -109,6 +109,34 @@ class BpmnModel {
             this.stages.get(taskId).update(newState)
         }
     }
+
+    applyDeviation(deviation){
+        switch(deviation.type){
+            case 'SKIPPED':
+
+            break;
+            case 'INCOMPLETE':
+
+            break;
+            case 'MULTI_EXECUTION':
+
+            break;
+            case 'INCORRECT_EXECUTION':
+
+            break;
+            case 'INCORRECT_BRANCH':
+
+            break;
+        }
+    }
+
+    clearDeviations(){
+
+    }
+
+    getOverlay(){
+        return []
+    }
 }
 
 module.exports = {

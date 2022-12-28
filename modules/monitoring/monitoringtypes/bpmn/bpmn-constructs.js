@@ -58,9 +58,19 @@ class BpmnConnection {
     }
 }
 
+class BpmnBlockOverlayReport {
+    constructor(perspective, blockId, color, flags) {
+        this.perspective = perspective
+        this.block_id = blockId
+        this.color = color
+        this.flags = flags
+    }
+}
+
 module.exports = {
     BpmnTask,
     BpmnGateway,
     BpmnEvent,
-    BpmnConnection
+    BpmnConnection,
+    BpmnBlockOverlayReport,
 }

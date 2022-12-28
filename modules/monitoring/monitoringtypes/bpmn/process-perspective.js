@@ -22,7 +22,7 @@ class IncompleteDeviation extends Deviation {
 
 class MultiExecutionDeviation extends Deviation {
     constructor(block) {
-        super('MULTI', block)
+        super('MULTI_EXECUTION', block)
     }
 }
 
@@ -45,13 +45,17 @@ class ProcessPerspective {
         this.bpmn_model = new BpmnModel(bpmnXml)
     }
 
-    _analyse() {
+    analyse() {
         //Process tree traversal and trying to find deviations
         var deviations = []
         for (var key in this.egsm_model.model_roots) {
             deviations.concat(this._analyseStage(this.egsm_model.model_roots[key], deviations))
             deviations = this._analyseRecursive(this.egsm_model.model_roots[key], deviations)
         }
+        //Apply deviations on the BPMN model
+        deviations.forEach(element => {
+            this.bpmn_model.applyDeviation(element)
+        });
         return deviations
     }
 
