@@ -43,9 +43,9 @@ class EgsmStage {
 
     reset() {
         this.cleanPropagations()
-        this.status = "regular"
-        this.state = "unopened"
-        this.compliance = "onTime"
+        this.status = "REGULAR"
+        this.state = "UNOPENED"
+        this.compliance = "ONTIME"
     }
 
     determineStageType() {
