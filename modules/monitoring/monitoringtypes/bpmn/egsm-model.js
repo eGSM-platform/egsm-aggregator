@@ -28,7 +28,7 @@ class EgsmModel {
     _parseStageRecursive(stage, parent) {
         var children = stage['ca:SubStage'] || []
         this.stages.set(stage['$'].id, new EgsmStage(stage['$'].id, stage['$'].name, parent, undefined,
-            (parent != 'NONE' && this.stages.get(parent).type == 'SEQUENCE' && this.stages.get(parent).type == 'LIFECYCLE') ?
+            (parent != 'NONE' && this.stages.get(parent).type == 'SEQUENCE' && this.stages.get(parent).type != 'LIFECYCLE') ?
                 stage?.['ca:ProcessFlowGuard']?.[0]?.['$'].expression : undefined))
         for (var key in children) {
             this.stages.get(stage['$'].id).addChild(children[key]['$'].id)

@@ -43,6 +43,7 @@ class ProcessPerspective {
         //Process tree traversal and trying to find deviations
         var deviations = []
         for (var key in this.egsm_model.model_roots) {
+            deviations.concat(this._analyseStage(this.egsm_model.model_roots[key], deviations))
             deviations = this._analyseRecursive(this.egsm_model.model_roots[key], deviations)
         }
         return deviations
@@ -103,7 +104,7 @@ class ProcessPerspective {
                 //If there is any SKIPPED stage among children it suggests, that at least one children activity has been skipped
                 //furthermore, at least one OoO children stage must exist
                 var skippings = new Map() //OoO stage -> skipped sequence (array of skipped stage id-s)
-                if (skipped.length > 0) {
+                if (skipped.size > 0) {
                     skipped.forEach(skippedElement => {
                         outOfOrder.forEach(outOfOrderElement => {
                             if (this.egsm_model.stages.get(outOfOrderElement).direct_successor == skippedElement) {
@@ -138,17 +139,17 @@ class ProcessPerspective {
                 //If the number of OoO stages is more than the number of skipped stages, then multi-execution of activity, or
                 //wrong sequence of execution occurred. I there was no skip, then we can know that only one OoO means duplication and 
                 //more than one means incorrect sequence, but skippings makes it impossible to distinguish
-                if (outOfOrder.length > skipped.length) {
+                if (outOfOrder.size > skipped.size) {
                     //We can distinguish between multi-execution and wrong sequene
-                    if (skipped.length == 0 && outOfOrder.length == 1) {
+                    if (skipped.size == 0 && outOfOrder.size == 1) {
                         deviations.push(new MultiExecutionDeviation(outOfOrder[0]))
                     }
-                    else if (skipped.length == 0 && outOfOrder.length > 1) {
+                    else if (skipped.size == 0 && outOfOrder.size > 1) {
                         deviations.push(new IncorrectExecutionSequenceDeviation(outOfOrder))
                     }
                     //We cannot distinguish between multi-execution and wrong sequene, so we are creating a 
                     //wrong sequence deviation instance, which can be considered as including duplication as well
-                    else if (skipped.length > 0) {
+                    else if (skipped.size > 0) {
                         deviations.push(new IncorrectExecutionSequenceDeviation(outOfOrder))
                     }
                 }

@@ -12,7 +12,7 @@ class EgsmStage {
         this.direct_successor = this.getSequentialSuccessor(processFlowGuard) //If the parent activity has SEQUENCE type it will contain the id of sucessor activity in case of correct execution (NONE if no successor). If the parent is not SEQUENCE then it will contain NA. Also NA for exception blocks
         this.status = "REGULAR" //REGULAR-FAULTY 
         this.state = "UNOPENED" //UNOPENED-OPEN-CLOSED
-        this.compliance = "onTime" //ONTIME-SKIPPED-OUTOFORDER
+        this.compliance = "ONTIME" //ONTIME-SKIPPED-OUTOFORDER
         this.children = []
         this.propagated_conditions = new Set()
     }
