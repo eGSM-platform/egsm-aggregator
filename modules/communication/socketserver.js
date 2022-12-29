@@ -84,7 +84,7 @@ function subscribeJobEvents(session, jobid) {
             job.eventEmitter.on('job-update', onJobEvent)
         }
         sessions.get(session).subscriptions.add(jobid)
-        job.triggerUpdateEvent()
+        job.triggerCompleteUpdateEvent()
         return { result: "subscribed" }
     }
     else {

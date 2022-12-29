@@ -55,11 +55,34 @@ class BpmnJob extends Job {
     return result
   }
 
-  triggerUpdateEvent() {
+  getCompleteUpdate(){
+    var overlays = []
+    var resultPerspectives = []
+    this.perspectives.forEach(element => {
+      resultPerspectives.push({
+        name: element.perspective_name,
+        bpmn_xml: element.bpmn_model.getModelXml()
+      })
+    });
+    this.perspectives.forEach(element => {
+      element.analyse()
+      overlays = overlays.concat(element.bpmn_model.getOverlay())
+    });
+    var result = {
+      job_id: this.id,
+      perspectives: resultPerspectives,
+      overlays: overlays
+    }
+    return result
+  }
+
+  triggerCompleteUpdateEvent() {
     console.info('EMIT')
-    this.eventEmitter.emit('job-update', this.getBpmnDiagrams())
-    var context = this
-    setTimeout(function(){context.eventEmitter.emit('job-update', context.getBpmnOverlay())},1000);
+    
+    this.eventEmitter.emit('job-update', this.getCompleteUpdate())
+    //this.eventEmitter.emit('job-update', this.getBpmnOverlay())
+    //var context = this
+    //setTimeout(function(){context.eventEmitter.emit('job-update', context.getBpmnOverlay())},1000);
   }
 }
 

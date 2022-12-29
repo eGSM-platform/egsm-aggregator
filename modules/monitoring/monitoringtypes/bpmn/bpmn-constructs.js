@@ -3,12 +3,15 @@ const COLOR_OPENED = '#FFB25F' //Orangish
 const COLOR_CLOSED = '#64E358' //Green
 
 class BpmnBlock {
-    constructor(id, name, inputs, outputs) {
+    constructor(id, name, inputs, outputs, positionX, positionY, width, height) {
         this.id = id
         this.name = name
         this.inputs = inputs || []
         this.outputs = outputs || []
         this.deviations = []
+        this.position = new Point(positionX, positionY)
+        this.width = width
+        this.height = height
     }
 
     addDeviation(deviation) {
@@ -25,8 +28,8 @@ class BpmnBlock {
 }
 
 class BpmnTask extends BpmnBlock {
-    constructor(id, name, inputs, outputs) {
-        super(id, name, inputs, outputs)
+    constructor(id, name, inputs, outputs, position) {
+        super(id, name, inputs, outputs, position.x, position.y, position.width, position.height)
         this.status = 'REGULAR' //REGULAR-FAULTY
         this.state = 'UNOPENED' //UNOPENED-ENABLED-RUNNING-COMPLETED-SKIPPED
     }
@@ -53,16 +56,17 @@ class BpmnTask extends BpmnBlock {
 }
 
 class BpmnGateway extends BpmnBlock {
-    constructor(id, name, type, subtype, inputs, outputs) {
-        super(id, name, inputs, outputs)
+    constructor(id, name, type, subtype, inputs, outputs, position) {
+        console.log(id)
+        super(id, name, inputs, outputs, position.x, position.y, position.width, position.height)
         this.type = type
         this.subtype = subtype
     }
 }
 
 class BpmnEvent extends BpmnBlock {
-    constructor(id, name, type, inputs, outputs, assigned) {
-        super(id, name, inputs, outputs)
+    constructor(id, name, type, inputs, outputs, assigned, position) {
+        super(id, name, inputs, outputs,position.x, position.y, position.width, position.height)
         this.type = type
         this.assigned = assigned
         this.state = 'UNOPENED'
@@ -79,13 +83,20 @@ class BpmnEvent extends BpmnBlock {
         }
     }
 }
-
 class BpmnConnection {
-    constructor(id, name, source, target) {
+    constructor(id, name, source, target, waypoints) {
         this.id = id
         this.name = name
         this.source = source
         this.target = target
+        this.waypoints = waypoints
+    }
+}
+
+class Point {
+    constructor(x, y) {
+        this.x = x
+        this.y = y
     }
 }
 
