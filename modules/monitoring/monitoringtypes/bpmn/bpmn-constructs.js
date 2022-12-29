@@ -1,3 +1,7 @@
+const COLOR_UNOPENED = '#C0C0C0' //Grey
+const COLOR_OPENED = '#FFB25F' //Orangish
+const COLOR_CLOSED = '#64E358' //Green
+
 class BpmnBlock {
     constructor(id, name, inputs, outputs) {
         this.id = id
@@ -13,6 +17,10 @@ class BpmnBlock {
 
     clearDeviations() {
         this.deviations.clear()
+    }
+
+    getBlockColor() {
+        console.warn('This function is not applicable for ' + this.id + ' The function should be overwritten')
     }
 }
 
@@ -31,6 +39,17 @@ class BpmnTask extends BpmnBlock {
             this.state = state
         }
     }
+
+    getBlockColor() {
+        switch (this.state) {
+            case 'UNOPENED':
+                return COLOR_UNOPENED
+            case 'OPEN':
+                return COLOR_OPENED
+            case 'CLOSED':
+                return COLOR_CLOSED
+        }
+    }
 }
 
 class BpmnGateway extends BpmnBlock {
@@ -46,6 +65,18 @@ class BpmnEvent extends BpmnBlock {
         super(id, name, inputs, outputs)
         this.type = type
         this.assigned = assigned
+        this.state = 'UNOPENED'
+    }
+
+    getBlockColor() {
+        switch (this.state) {
+            case 'UNOPENED':
+                return COLOR_UNOPENED
+            case 'OPEN':
+                return COLOR_OPENED
+            case 'CLOSED':
+                return COLOR_CLOSED
+        }
     }
 }
 

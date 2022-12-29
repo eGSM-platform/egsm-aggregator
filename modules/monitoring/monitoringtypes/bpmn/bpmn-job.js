@@ -27,21 +27,29 @@ class BpmnJob extends Job {
     }*/
   }
 
-  getBpmnDetails() {
+  getBpmnDiagrams() {
     var resultPerspectives = []
-    var overlays = []
     this.perspectives.forEach(element => {
       resultPerspectives.push({
         name: element.perspective_name,
         bpmn_xml: element.bpmn_model.model_xml
       })
-      //Running analyse() ad-hoc to make sure that the overlays are up-to-date
-      element.analyse()
-      overlays.concat(element.bpmn_model.getOverlay())
     });
     var result = {
       job_id: this.id,
       perspectives: resultPerspectives,
+    }
+    return result
+  }
+
+  getBpmnOverlay() {
+    var overlays = []
+    this.perspectives.forEach(element => {
+      element.analyse()
+      overlays = overlays.concat(element.bpmn_model.getOverlay())
+    });
+    var result = {
+      job_id: this.id,
       overlays: overlays
     }
     return result
@@ -49,7 +57,9 @@ class BpmnJob extends Job {
 
   triggerUpdateEvent() {
     console.info('EMIT')
-    this.eventEmitter.emit('job-update', this.getBpmnDetails())
+    this.eventEmitter.emit('job-update', this.getBpmnDiagrams())
+    var context = this
+    setTimeout(function(){context.eventEmitter.emit('job-update', context.getBpmnOverlay())},1000);
   }
 }
 

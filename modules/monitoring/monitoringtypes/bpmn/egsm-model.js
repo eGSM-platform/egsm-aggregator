@@ -49,6 +49,20 @@ class EgsmModel {
             }
         });
     }
+
+    getStageInfoArray() {
+        var result = []
+        for (var [key, entry] of this.stages) {
+            //if (entry.type == 'ACTIVITY') {
+            result.push({
+                name: entry.id,
+                status: entry.status,
+                state: entry.state
+            })
+            //}
+        }
+        return result
+    }
 }
 
 module.exports = {

@@ -1,10 +1,11 @@
 var EventEmitter = require('events')
 var xml2js = require('xml2js');
-const { BpmnTask, BpmnConnection, BpmnGateway, BpmnEvent } = require("./bpmn-constructs")
+const { BpmnTask, BpmnConnection, BpmnGateway, BpmnEvent, BpmnBlockOverlayReport } = require("./bpmn-constructs")
 
 class BpmnModel {
-    constructor(modelXml) {
+    constructor(perspectiveName, modelXml) {
         this.model_xml = modelXml
+        this.perspective_name = perspectiveName
         this.stages = new Map() //id -> BpmnStage
         this.events = new Map() //id -> BpmnEvent
         this.connections = new Map() //id -> BpmnConnection
@@ -110,32 +111,55 @@ class BpmnModel {
         }
     }
 
-    applyDeviation(deviation){
-        switch(deviation.type){
+    //Array of {name; status; state}
+    applyEgsmStageArray(stageInfo) {
+        stageInfo.forEach(element => {
+            if (this.stages.has(element.name)) {
+                this.stages.get(element.name).update(element.status, element.state)
+            }
+        });
+    }
+
+    applyDeviation(deviation) {
+        switch (deviation.type) {
+            //SkipDeviation consists of an OutOfOrder activityand a Skipped Sequence
+            //It is represented as an arrow from the last correctly executed activity to the
+            //OutOfOrder one
             case 'SKIPPED':
 
-            break;
+                break;
+            //IncompleteDeviation regards always one eGSM stage only. If we are able to find the
+            //matching BPMN task or block then we can add a Flag, otherwise neglect it
             case 'INCOMPLETE':
 
-            break;
+                break;
+
             case 'MULTI_EXECUTION':
 
-            break;
+                break;
             case 'INCORRECT_EXECUTION':
 
-            break;
+                break;
             case 'INCORRECT_BRANCH':
 
-            break;
+                break;
         }
     }
 
-    clearDeviations(){
+    clearDeviations() {
 
     }
 
-    getOverlay(){
-        return []
+    getOverlay() {
+        var result = []
+        this.construcs.forEach(element => {
+            if (element.constructor.name == 'BpmnTask' || element.constructor.name == 'BpmnEvent') {
+                var color = element.getBlockColor()
+                var flags = []
+                result.push(new BpmnBlockOverlayReport(this.perspective_name, element.id, color, flags))
+            }
+        });
+        return result
     }
 }
 

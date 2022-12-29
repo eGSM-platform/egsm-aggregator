@@ -42,7 +42,7 @@ class ProcessPerspective {
     constructor(perspectiveName, egsmXml, bpmnXml) {
         this.perspective_name = perspectiveName
         this.egsm_model = new EgsmModel(egsmXml)
-        this.bpmn_model = new BpmnModel(bpmnXml)
+        this.bpmn_model = new BpmnModel(perspectiveName, bpmnXml)
     }
 
     analyse() {
@@ -52,6 +52,8 @@ class ProcessPerspective {
             deviations.concat(this._analyseStage(this.egsm_model.model_roots[key], deviations))
             deviations = this._analyseRecursive(this.egsm_model.model_roots[key], deviations)
         }
+        //Update Status and State of BPMN Activities
+        this.bpmn_model.applyEgsmStageArray(this.egsm_model.getStageInfoArray())
         //Apply deviations on the BPMN model
         deviations.forEach(element => {
             this.bpmn_model.applyDeviation(element)
