@@ -1,6 +1,11 @@
-const COLOR_UNOPENED = '#C0C0C0' //Grey
-const COLOR_OPENED = '#FFB25F' //Orangish
-const COLOR_CLOSED = '#64E358' //Green
+const BLOCK_COLOR_UNOPENED = '#C0C0C0' //Grey
+const BLOCK_COLOR_OPENED = '#FFB25F' //Orangish
+const BLOCK_COLOR_CLOSED = '#64E358' //Green
+const BLOCK_COLOR_ILLEGAL = '#EF233C' //Redish
+
+const CONNECTION_COLOR_REGULAR = '#000000' //Black
+const CONNECTION_COLOR_FAULTY = '#EF233C' //Redish
+const CONNECTION_COLOR_HIGHLIGHTED = '#F7B801' //Orangish
 
 class BpmnBlock {
     constructor(id, name, inputs, outputs, positionX, positionY, width, height) {
@@ -46,11 +51,11 @@ class BpmnTask extends BpmnBlock {
     getBlockColor() {
         switch (this.state) {
             case 'UNOPENED':
-                return COLOR_UNOPENED
+                return { stroke: '#000000', fill: BLOCK_COLOR_UNOPENED }
             case 'OPEN':
-                return COLOR_OPENED
+                return { stroke: '#000000', fill: BLOCK_COLOR_OPENED }
             case 'CLOSED':
-                return COLOR_CLOSED
+                return { stroke: '#000000', fill: BLOCK_COLOR_CLOSED }
         }
     }
 }
@@ -61,25 +66,32 @@ class BpmnGateway extends BpmnBlock {
         super(id, name, inputs, outputs, position.x, position.y, position.width, position.height)
         this.type = type
         this.subtype = subtype
+        this.pair_gateway = 'NA'
     }
 }
 
 class BpmnEvent extends BpmnBlock {
     constructor(id, name, type, inputs, outputs, assigned, position) {
-        super(id, name, inputs, outputs,position.x, position.y, position.width, position.height)
+        super(id, name, inputs, outputs, position.x, position.y, position.width, position.height)
         this.type = type
         this.assigned = assigned
         this.state = 'UNOPENED'
+        this.illegal = false
     }
 
     getBlockColor() {
-        switch (this.state) {
-            case 'UNOPENED':
-                return COLOR_UNOPENED
-            case 'OPEN':
-                return COLOR_OPENED
-            case 'CLOSED':
-                return COLOR_CLOSED
+        if (!this.illegal) {
+            switch (this.state) {
+                case 'UNOPENED':
+                    return { stroke: '#000000', fill: BLOCK_COLOR_UNOPENED }
+                case 'OPEN':
+                    return { stroke: '#000000', fill: BLOCK_COLOR_OPENED }
+                case 'CLOSED':
+                    return { stroke: '#000000', fill: BLOCK_COLOR_CLOSED }
+            }
+        }
+        else {
+            return { stroke: '#000000', fill: BLOCK_COLOR_ILLEGAL }
         }
     }
 }
@@ -90,6 +102,19 @@ class BpmnConnection {
         this.source = source
         this.target = target
         this.waypoints = waypoints
+        this.status = 'REGULAR' //Status of Connections can be: REGULAR-FAULTY-HIGHLIGHTED
+    }
+
+    getBlockColor() {
+        switch (this.status) {
+            case 'REGULAR':
+                return { stroke: CONNECTION_COLOR_REGULAR, fill: CONNECTION_COLOR_REGULAR }
+            case 'FAULTY':
+                return { stroke: CONNECTION_COLOR_FAULTY, fill: CONNECTION_COLOR_FAULTY }
+            case 'HIGHLIGHTED':
+                return { stroke: CONNECTION_COLOR_HIGHLIGHTED, fill: CONNECTION_COLOR_HIGHLIGHTED }
+
+        }
     }
 }
 
@@ -115,4 +140,5 @@ module.exports = {
     BpmnEvent,
     BpmnConnection,
     BpmnBlockOverlayReport,
+    Point,
 }

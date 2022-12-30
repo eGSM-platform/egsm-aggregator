@@ -4,6 +4,7 @@ const { ProcessNotification } = require('../../../egsm-common/auxiliary/primitiv
 const { Validator } = require('../../../egsm-common/auxiliary/validator')
 const { Job } = require('../job')
 const { ProcessPerspective } = require('./process-perspective')
+const { SkipDeviation } = require("./process-perspective");
 
 module.id = "BPMN"
 
@@ -56,12 +57,17 @@ class BpmnJob extends Job {
   }
 
   getCompleteUpdate(){
+    //TMP
+    //var deviation = new SkipDeviation(['s_processstarted'], 'ParallelGateway_1')
+    var deviation = new SkipDeviation(['ParallelGateway_1','attach_container'], 'drive_to_terminal')
+    var deviation2 = new SkipDeviation(['detach_container'], 'c_portion_ended')
+    //TMP
     var overlays = []
     var resultPerspectives = []
     this.perspectives.forEach(element => {
       resultPerspectives.push({
         name: element.perspective_name,
-        bpmn_xml: element.bpmn_model.getModelXml()
+        bpmn_xml: element.bpmn_model.getModelXml(deviation, deviation2)
       })
     });
     this.perspectives.forEach(element => {

@@ -226,5 +226,6 @@ class ProcessPerspective {
 }
 
 module.exports = {
-    ProcessPerspective
+    ProcessPerspective,
+    SkipDeviation
 }
