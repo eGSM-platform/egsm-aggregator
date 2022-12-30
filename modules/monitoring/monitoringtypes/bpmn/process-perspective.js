@@ -27,8 +27,8 @@ class MultiExecutionDeviation extends Deviation {
 }
 
 class IncorrectExecutionSequenceDeviation extends Deviation {
-    constructor(block) {
-        super('INCORRECT_EXECUTION', block)
+    constructor(blocks) {
+        super('INCORRECT_EXECUTION', blocks)
     }
 }
 
@@ -227,5 +227,7 @@ class ProcessPerspective {
 
 module.exports = {
     ProcessPerspective,
-    SkipDeviation
+    SkipDeviation,
+    IncompleteDeviation,
+    MultiExecutionDeviation,
 }

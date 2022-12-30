@@ -247,14 +247,22 @@ class BpmnModel {
             //IncompleteDeviation regards always one eGSM stage only. If we are able to find the
             //matching BPMN task or block then we can add a Flag, otherwise neglect it
             case 'INCOMPLETE':
-
+                if (this.construcs.has(deviation.block_a)) {
+                    this.construcs.get(deviation.block_a).addDeviation('INCOMPLETE')
+                }
                 break;
 
             case 'MULTI_EXECUTION':
-
+                if (this.construcs.has(deviation.block_a)) {
+                    this.construcs.get(deviation.block_a).addDeviation('MULTI_EXECUTION')
+                }
                 break;
             case 'INCORRECT_EXECUTION':
-
+                deviation.block_a.forEach(element => {
+                    if (this.construcs.has(element)) {
+                        this.construcs.get(element).addDeviation('MULTI_EXECUTION')
+                    }
+                });
                 break;
             case 'INCORRECT_BRANCH':
 
@@ -342,7 +350,7 @@ class BpmnModel {
         this.construcs.forEach(element => {
             if (element.constructor.name == 'BpmnTask' || element.constructor.name == 'BpmnEvent' || element.constructor.name == 'BpmnConnection') {
                 var color = element.getBlockColor()
-                var flags = []
+                var flags = element.deviations || []
                 result.push(new BpmnBlockOverlayReport(this.perspective_name, element.id, color, flags))
             }
         });
