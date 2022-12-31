@@ -4,11 +4,22 @@ const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviati
 var CONNCONF = require('../egsm-common/config/connectionconfig')
 const { BpmnJob } = require("./monitoringtypes/bpmn/bpmn-job")
 
+/**
+ * Factory class to create Job instances based on the provided configuration
+ */
 class JobFactory {
+    /**
+     * @param {Object} notificationmanager Reference to the NotificationManager instance intended to be used by the created Jobs 
+     */
     constructor(notificationmanager) {
         this.notification_manager = notificationmanager
     }
 
+    /**
+     * Creates a new Job based on the provided 'config' attribute 
+     * @param {Object} config Configuration Object containing all necessary attributes to build a job
+     * @returns A new Job object
+     */
     buildJob(config) {
         //Considering config contains the config of 1 job only
         try {

@@ -1,3 +1,6 @@
+/**
+ * Module to start a Websocket Server, which will serve as an endpoint for front-end services
+ */
 var UUID = require("uuid");
 var WebSocketServer = require('websocket').server;
 var http = require('http');
@@ -7,9 +10,9 @@ const { MonitoringManager } = require("../monitoring/monitoringmanager");
 
 module.id = 'SOCKET'
 
-min = Math.ceil(8000);
-max = Math.floor(60000);
-CONNCONFIG.setSocketaddress('localhost', Math.floor(Math.random() * (max - min + 1) + min))
+const MIN_PORT = 8000
+const MAX_PORT = 60000
+CONNCONFIG.setSocketaddress('localhost', Math.floor(Math.random() * (MAX_PORT - MIN_PORT + 1) + MIN_PORT))
 
 var sessions = new Map() //session_id -> session related data
 
@@ -76,10 +79,20 @@ async function messageHandler(message, sessionid) {
     }
 }
 
+/**
+ * Subscribes the specified session to the events of the specified job
+ * If both the 'jobid' and 'sessionid' were valid, the system will forward event from the specified job to the Websocket Session
+ * Please note that these events are not the same as the Notifications sent to Stakeholders and so may not all Job types using it, 
+ * these events are more specific than Notifications and intended to be used for job observation (e.g.: Sending BPMN diagram updates to the
+ * front-end)
+ *  
+ * @param {String} session ID of the specified Websocket Session
+ * @param {String} jobid ID of the specified job
+ * @returns And Object containing the result of the operation
+ */
 function subscribeJobEvents(session, jobid) {
     var job = MonitoringManager.getInstance().getJob(jobid)
     if (job) {
-        //console.log(job.eventEmitter.listeners('job-update').length)
         if (job.eventEmitter.listeners('job-update').length == 0) {
             job.eventEmitter.on('job-update', onJobEvent)
         }
@@ -89,10 +102,14 @@ function subscribeJobEvents(session, jobid) {
     }
     else {
         console.warn(`Job with ID [${jobid}] does not found`)
-        return
+        return {result: "error"}
     }
 }
 
+/**
+ * Function to be called by Jobs in case of a new Event
+ * @param {Object} data Object to be forwarded through the Websocket 
+ */
 function onJobEvent(data) {
     var message = {
         type: 'job_update',
@@ -101,10 +118,8 @@ function onJobEvent(data) {
         }
     }
     for (let [session, sessionData] of sessions) {
-        console.log(session)
-        console.log(sessionData)
-        console.log(data['job_id'])
         if (sessionData.subscriptions.has(data['job_id'])) {
+            LOG.logSystem('DEBUG', `Sending Job Update message to [${session}]`, module.id)
             sessionData.connection.sendUTF(JSON.stringify(message))
         }
     }

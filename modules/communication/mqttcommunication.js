@@ -14,7 +14,7 @@ module.id = "MQTTCOMM"
 
 const ID_VERIFICATION_PERIOD = 1500 //Time the other Aggregators has to reply if their ID is identical with the one the local worker wants to use
 
-const PROCESS_DISCOVERY_PERIOD = 1500
+const PROCESS_DISCOVERY_PERIOD = 1500 //Waiting period used in the Process Discovery feature
 
 //Topic definitions
 const AGGREGATORS_TO_SUPERVISORS = 'aggregators_to_supervisor'
@@ -27,10 +27,10 @@ var MQTT_PORT = undefined;
 var MQTT_USER = undefined;
 var MQTT_USER_PW = undefined
 
-var REQUEST_PROMISES = new Map()
+var REQUEST_PROMISES = new Map() // Request id -> Responsible Promise Object
 var REQUEST_BUFFERS = new Map() // Request id -> Usage specific storage place (used only for specific type of requests)
 
-var MONITORING_MANAGER = undefined
+var MONITORING_MANAGER = undefined // Reference to the used Monitoring Manager instance
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
@@ -58,8 +58,8 @@ function onMessageReceived(hostname, port, topic, message) {
                     message_type: 'PONG',
                     sender_id: CONNCONFIG.getConfig().self_id,
                     payload: {
-                        hostname: 'NA',//ROUTES.getRESTCredentials()['hostname'],
-                        port: 0,//ROUTES.getRESTCredentials()['port'],
+                        hostname: CONNCONFIG.getConfig().socket_host,
+                        port: CONNCONFIG.getConfig().socket_port,
                         uptime: process.uptime(),
                         activity_mumber: MONITORING_MANAGER.getNumberOfJobs(),
                         capacity: MONITORING_MANAGER.getCapacity()
@@ -132,7 +132,6 @@ function onMessageReceived(hostname, port, topic, message) {
             //    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
             //    break;
             //}
-
         }
     }
 }
@@ -198,11 +197,22 @@ async function initPrimaryBrokerConnection(broker) {
     return topicSelf
 }
 
-//This is similar to Observer design pattern and necessary to avoid circular dependency of MQTT module
+/**
+ * Setting the Monitoring Manager instance used by this module
+ * This is similar to Observer design pattern and necessary to avoid circular dependency of MQTT module 
+ * @param {Object} manager Reference to the new MonitoringManager object 
+ */
 function setMonitoringManager(manager) {
     MONITORING_MANAGER = manager
 }
 
+/**
+ * Discovers the online Processes satisfying a set of rules
+ * @param {Object} rules Rules the Engines should satisfy. 
+ * The function broadcasts a message which is received by each Workers. If any of them has at least one engine satisfying the rules it will reply
+ * Finally the function receives the reply, and builds a set containing all Process Instances which has at least one engine among the received replies 
+ * @returns Promise will contain a set of Engine Id-s (<Process Type>/<Instnace ID>)
+ */
 async function discoverProcessGroupMembers(rules) {
     var request_id = UUID.v4();
     var message = {

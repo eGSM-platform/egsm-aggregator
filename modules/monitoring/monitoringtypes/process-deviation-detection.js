@@ -6,11 +6,27 @@ const { Job } = require('./job')
 
 module.id = "PRO_DEV_DET"
 
+/**
+ * Job type detects deviations of Processes and send immediate notifications based on Notifiaction Rules
+ */
 class ProcessDeviationDetection extends Job {
+    /**
+     * @param {String} id Job ID
+     * @param {Broker} brokers Monitored Brokers
+     * @param {String} owner Owner of the Job
+     * @param {String[]} monitored List of Monitored Processes
+     * @param {String[]} monitoredprocessgroups List of Monitored Process Groups
+     * @param {Object} notificationrules Applied Notification Rules
+     * @param {Object} notificationmanager Applied Notification Manager
+     */
     constructor(id, brokers, owner, monitored, monitoredprocessgroups, notificationrules, notificationmanager) {
         super(id, 'process-deviation-detection', brokers, owner, monitored, monitoredprocessgroups, [], notificationrules, notificationmanager)
     }
 
+    /**
+     * Called when the EngineObserver reveives an event from the Process
+     * @param {Object} messageObj The Event Object 
+     */
     onProcessEvent(messageObj) {
         var errors = Validator.validateProcessStage(messageObj.stage)
         if (errors.length > 0) {

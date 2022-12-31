@@ -1,29 +1,33 @@
 var UUID = require("uuid");
-var EventEmitter = require('events')
 var xml2js = require('xml2js');
 const { BpmnTask, BpmnConnection, BpmnGateway, BpmnEvent, BpmnBlockOverlayReport, Point } = require("./bpmn-constructs");
 
+/**
+ * Class representing a BPMN model
+ */
 class BpmnModel {
+    /**
+     * 
+     * @param {String} perspectiveName Name of Process Perspective the BpmnModel instnace embodies
+     * @param {String} modelXml Valid XML String describing the BPMN model (both process and diagram (visualization))
+     */
     constructor(perspectiveName, modelXml) {
         this.model_xml = modelXml
         this.parsed_model_xml = undefined
         this.perspective_name = perspectiveName
-        this.stages = new Map() //id -> BpmnStage
-        this.events = new Map() //id -> BpmnEvent
-        this.connections = new Map() //id -> BpmnConnection
-        this.gateways = new Map() // id-> BpmnGateway
         this.lifecycle_stage = 'CREATED' //CREATED-RUNNING-ACTIVE-COMPLETED
 
-        this.construcs = new Map()
-        this.overlay_constructs = new Map() //Contains Bpmn Blocks which are created to represent eviation, but not part of the original model
+        this.construcs = new Map() //Containing all Blocks and Edges of the original Process Diagram
+        this.overlay_constructs = new Map() //Contains Bpmn Blocks and Edges which are created to represent deviations, but not part of the original model
 
         this.parseModelXml()
         this._buildModel()
-
-        //Visual elements
-        this.planes = []
     }
 
+    /**
+     * Parsing the modelXml String provided as constructor argument
+     * The result is saved in the this.parsed_model_xml attribute
+     */
     parseModelXml() {
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
@@ -34,6 +38,10 @@ class BpmnModel {
         })
     }
 
+    /**
+     * Clear all model-related attributes and rebuild it based on this.parsed_model_xml
+     * As a prerequirement parseModelXml() function has to be called before this function
+     */
     _buildModel() {
         //Creating a temporary map containing all blocks and their position information, to make data retieval efficient
         //The information from this map will be used during block instantiations
@@ -65,7 +73,6 @@ class BpmnModel {
         for (var key in tasks) {
             var newTask = new BpmnTask(tasks[key]['$'].id, tasks[key]['$'].name, tasks[key]['bpmn2:incoming'], tasks[key]['bpmn2:outgoing'],
                 diagram_elements.get(tasks[key]['$'].id))
-            this.stages.set(tasks[key]['$'].id, newTask)
             this.construcs.set(tasks[key]['$'].id, newTask)
         }
 
@@ -73,7 +80,6 @@ class BpmnModel {
         for (var key in connections) {
             var newConnection = new BpmnConnection(connections[key]['$'].id, connections[key]['$'].name, connections[key]['$'].sourceRef,
                 connections[key]['$'].targetRef, diagram_elements.get(connections[key]['$'].id))
-            this.connections.set(connections[key]['$'].id, newConnection)
             this.construcs.set(connections[key]['$'].id, newConnection)
         }
 
@@ -82,7 +88,6 @@ class BpmnModel {
             var newGateway = new BpmnGateway(parallelGateways[key]['$'].id, parallelGateways[key]['$'].name, 'PARALLEL',
                 parallelGateways[key]['$'].gatewayDirection, parallelGateways[key]['bpmn2:incoming'], parallelGateways[key]['bpmn2:outgoing'],
                 diagram_elements.get(parallelGateways[key]['$'].id))
-            this.gateways.set(parallelGateways[key]['$'].id, newGateway)
             this.construcs.set(parallelGateways[key]['$'].id, newGateway)
         }
 
@@ -91,7 +96,6 @@ class BpmnModel {
             var newGateway = new BpmnGateway(exclusiveGateways[key]['$'].id, exclusiveGateways[key]['$'].name, 'EXCLUSIVE',
                 exclusiveGateways[key]['$'].gatewayDirection, exclusiveGateways[key]['bpmn2:incoming'], exclusiveGateways[key]['bpmn2:outgoing'],
                 diagram_elements.get(exclusiveGateways[key]['$'].id))
-            this.gateways.set(exclusiveGateways[key]['$'].id, newGateway)
             this.construcs.set(exclusiveGateways[key]['$'].id, newGateway)
         }
 
@@ -100,7 +104,6 @@ class BpmnModel {
             var newGateway = new BpmnGateway(inclusiveGateways[key]['$'].id, inclusiveGateways[key]['$'].name, 'INCLUSIVE',
                 inclusiveGateways[key]['$'].gatewayDirection, inclusiveGateways[key]['bpmn2:incoming'], inclusiveGateways[key]['bpmn2:outgoing'],
                 diagram_elements.get(inclusiveGateways[key]['$'].id))
-            this.gateways.set(inclusiveGateways[key]['$'].id, newGateway)
             this.construcs.set(inclusiveGateways[key]['$'].id, newGateway)
         }
 
@@ -108,7 +111,6 @@ class BpmnModel {
         for (var key in startEvents) {
             var newEvent = new BpmnEvent(startEvents[key]['$'].id, startEvents[key]['$'].name, 'START', [], startEvents[key]['bpmn2:outgoing'], undefined,
                 diagram_elements.get(startEvents[key]['$'].id))
-            this.events.set(startEvents[key]['$'].id, newEvent)
             this.construcs.set(startEvents[key]['$'].id, newEvent)
         }
 
@@ -116,7 +118,6 @@ class BpmnModel {
         for (var key in endEvents) {
             var newEvent = new BpmnEvent(endEvents[key]['$'].id, endEvents[key]['$'].name, 'END', endEvents[key]['bpmn2:incoming'], [], undefined,
                 diagram_elements.get(endEvents[key]['$'].id))
-            this.events.set(endEvents[key]['$'].id, newEvent)
             this.construcs.set(endEvents[key]['$'].id, newEvent)
         }
 
@@ -124,7 +125,6 @@ class BpmnModel {
         for (var key in boundaryEvents) {
             var newEvent = new BpmnEvent(boundaryEvents[key]['$'].id, boundaryEvents[key]['$'].name, 'BOUNDARY', [],
                 boundaryEvents[key]['bpmn2:outgoing'], boundaryEvents[key]['$'].attachedToRef, diagram_elements.get(boundaryEvents[key]['$'].id))
-            this.events.set(boundaryEvents[key]['$'].id, newEvent)
             this.construcs.set(boundaryEvents[key]['$'].id, newEvent)
         }
 
@@ -132,7 +132,6 @@ class BpmnModel {
         for (var key in intermediateThrowEvents) {
             var newEvent = new BpmnEvent(intermediateThrowEvents[key]['$'].id, intermediateThrowEvents[key]['$'].name, 'INTERMEDIATE_THROW', intermediateThrowEvents[key]['bpmn2:incoming'],
                 intermediateThrowEvents[key]['bpmn2:outgoing'], undefined, diagram_elements.get(intermediateThrowEvents[key]['$'].id))
-            this.events.set(intermediateThrowEvents[key]['$'].id, newEvent)
             this.construcs.set(intermediateThrowEvents[key]['$'].id, newEvent)
         }
 
@@ -140,7 +139,6 @@ class BpmnModel {
         for (var key in intermediateCatchEvents) {
             var newEvent = new BpmnEvent(intermediateCatchEvents[key]['$'].id, intermediateCatchEvents[key]['$'].name, 'INTERMEDIATE_CATCH', intermediateCatchEvents[key]['bpmn2:incoming'],
                 intermediateCatchEvents[key]['bpmn2:outgoing'], undefined, diagram_elements.get(intermediateCatchEvents[key]['$'].id))
-            this.events.set(intermediateCatchEvents[key]['$'].id, newEvent)
             this.construcs.set(intermediateCatchEvents[key]['$'].id, newEvent)
         }
 
@@ -157,13 +155,21 @@ class BpmnModel {
                 }
             }
         });
-        console.log('Model Build finished')
     }
 
+    /**
+     * Sets the lifecycle of the model
+     * @param {String} newStage New Lifecycle stage 
+     */
     setLifecycle(newStage) {
         this.lifecycle_stage = newStage
     }
 
+    /**
+     * Finds the Converging pair of a Diverging gateway
+     * @param {BpmnGateway} divergingGateway The Converging gateway whose diverging pair is intended to be found. This attribute must be Diverging! 
+     * @returns Returns a BpmnGateway object of the converging pair of 'divergingGateway'
+     */
     findConvergingGateway(divergingGateway) {
         var counter = 1
         var currentNode = divergingGateway
@@ -184,15 +190,22 @@ class BpmnModel {
         return currentNode
     }
 
-    //Array of {name; status; state}
+    /**
+     * Updates the status and state of a list of BpmnTask-s
+     * @param {Object[]} stageInfo Should contain a list of objects: {stage_name; status; state}
+     */
     applyEgsmStageArray(stageInfo) {
         stageInfo.forEach(element => {
-            if (this.stages.has(element.name)) {
-                this.stages.get(element.name).update(element.status, element.state)
+            if (this.construcs.has(element.name)) {
+                this.construcs.get(element.name).update(element.status, element.state)
             }
         });
     }
 
+    /**
+     * Applies a devition on the BPMN model
+     * @param {Deviation} deviation A deviation Object inherited from Deviation superclass 
+     */
     applyDeviation(deviation) {
         switch (deviation.type) {
             //SkipDeviation consists of an OutOfOrder activityand a Skipped Sequence
@@ -270,10 +283,18 @@ class BpmnModel {
         }
     }
 
-    clearDeviations() {
-
+    /**
+     * Resets the model to its original state (based on the BPMN XML description provided in the constructor)
+     */
+    resetModel() {
+        this.parseModelXml()
+        this._buildModel()
     }
 
+    /**
+     * Gets the current XML representation of the model (containing the deviations as well)
+     * @returns String containing the XML description of the diagram
+     */
     getModelXml(deviation, deviation2) {
         //TMP
         this.applyDeviation(deviation)
@@ -283,6 +304,15 @@ class BpmnModel {
         return builder.buildObject(this.parsed_model_xml);
     }
 
+    /**
+     * Adding a new Skipping edge to the Diagram
+     * Skipping Edges are special edges (marked by red) representing SkipDeviations (the process flow skipped a segment of the process)
+     * @param {String} id Unique ID of the new edge
+     * @param {Point[]} waypoints Edge waypoints
+     * @param {String} sourceNode ID of the source node 
+     * @param {String} targetNode ID of the target node
+     * @returns 
+     */
     _addSkippingEdgeToModel(id, waypoints, sourceNode, targetNode) {
         var newBpmnSequence = {
             $: {
@@ -316,6 +346,18 @@ class BpmnModel {
         return id
     }
 
+    /**
+     * Adds a new BpmnEvent to the diagram with a special 'illegal' state
+     * The event represents if the original Start event(s) has been skipped and the Process flow has been started with a task/event
+     * which is not a valid Start Event
+     * The Illegal Entry is always combined with a Skipping Edge and similarly to that it is also marked with Red
+     * @param {String} id Unique ID
+     * @param {Point} position Position of the Event Block
+     * @param {Number} width Widht of the Block
+     * @param {Number} height Height of the Block
+     * @param {String} outgoingEdge Id of the Outgoing Edge
+     * @returns 
+     */
     _addIllegalEntryToModel(id, position, width, height, outgoingEdge) {
         var newBpmnStartEvent = {
             $: {
@@ -345,6 +387,10 @@ class BpmnModel {
         return id
     }
 
+    /**
+     * Gets an Array of OverlayReport Objects representing the current state of the mode (including deviations as well)
+     * @returns List of OverlayReport Objects interpreted by the Front-end
+     */
     getOverlay() {
         var result = []
         this.construcs.forEach(element => {

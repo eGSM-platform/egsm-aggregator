@@ -1,6 +1,9 @@
 const { BpmnModel } = require("./bpmn-model")
 const { EgsmModel } = require("./egsm-model")
 
+/**
+ * Deviation superclass to represent one instance of Deviation detected in the eGSM model
+ */
 class Deviation {
     constructor(type, blockA, blockB) {
         this.type = type
@@ -8,45 +11,92 @@ class Deviation {
         this.block_b = blockB
     }
 }
+
+/**
+ * SkipDeviation is a type of deviation when in a sequence of stages one or more stage has been skipped, causing the upcoming stage to be OutOfOrder
+ */
 class SkipDeviation extends Deviation {
+    /**
+     * @param {String[]} skipped The skipped stage(s) 
+     * @param {String} outOfOrder The upcoming stage after the skipped sequence (OutOfOrder Stage)
+     */
     constructor(skipped, outOfOrder) {
         super('SKIPPED', skipped, outOfOrder)
     }
 }
 
+/**
+ * IncompleteDeviation is a type of Deviation when a Stage has been opened, but not closed, suggesting that the its execution is not complete
+ */
 class IncompleteDeviation extends Deviation {
+    /**
+     * @param {String} block ID of the problematic Stage
+     */
     constructor(block) {
         super('INCOMPLETE', block)
     }
 }
 
+/**
+ * MultiExecutionDeviation is a type of Deviation when one stage has been executed multiple times (while it was intended once only)
+ */
 class MultiExecutionDeviation extends Deviation {
+    /**
+     * @param {String} block ID of the problematic Stage 
+     */
     constructor(block) {
         super('MULTI_EXECUTION', block)
     }
 }
 
+/**
+ * IncorrectExecutionSequenceDeviation is a type of Deviation when a group of tasks has not been executed on the desired sequence
+ */
 class IncorrectExecutionSequenceDeviation extends Deviation {
+    /**
+     * @param {String[]} blocks ID-s of the affected Blocks
+     */
     constructor(blocks) {
         super('INCORRECT_EXECUTION', blocks)
     }
 }
 
+/**
+ * IncorrectBranchDeviation is a type of Deviation happens when in an Exclusive or Inclusive block the wrong Branch has been selected
+ */
 class IncorrectBranchDeviation extends Deviation {
+    /**
+     * @param {String} intended ID of the intended Sequence 
+     * @param {String} executed ID of the actually executed Sequence
+     */
     constructor(intended, executed) {
         super('INCORRECT_BRANCH', intended, executed)
     }
 }
 
+/**
+ * Class representing one perspective of a Process encapsulating the corresponding eGSM and BPMN models
+ */
 class ProcessPerspective {
+    /**
+     * @param {String} perspectiveName Name of the perspective
+     * @param {String} egsmXml XML description of the eGSM model
+     * @param {String} bpmnXml XML description of the BPMN Model
+     */
     constructor(perspectiveName, egsmXml, bpmnXml) {
         this.perspective_name = perspectiveName
         this.egsm_model = new EgsmModel(egsmXml)
         this.bpmn_model = new BpmnModel(perspectiveName, bpmnXml)
     }
 
+    /**
+     * Performs a full analysis on the eGSM model and detect deviations
+     * The function will also reset the BPMN model (to remove old deviations), synchronize its states with the current eGSM ones
+     * and apply the discovered deviations on it, so we can be sure that after the termination of this function the BPMN will be synchronized with the eGSM model 
+     * @returns Returns by the discovered deviations as a list of Deviation instances
+     */
     analyse() {
-        //Process tree traversal and trying to find deviations
+        //Process tree traversal to find deviations
         var deviations = []
         for (var key in this.egsm_model.model_roots) {
             deviations.concat(this._analyseStage(this.egsm_model.model_roots[key], deviations))
@@ -61,6 +111,13 @@ class ProcessPerspective {
         return deviations
     }
 
+    /**
+     * Recursive function to discover deviations
+     * Should be called only internally
+     * @param {String} stage ID of the current stage
+     * @param {Deviation[]} discoveredDeviations Array containing the already discovered Deviations
+     * @returns An array of Deviation instances, containing the content of 'discoveredDeviations' argument and the freshly discovered Deviations
+     */
     _analyseRecursive(stage, discoveredDeviations) {
         var children = this.egsm_model.stages.get(stage).children
         var deviations = discoveredDeviations
@@ -71,8 +128,14 @@ class ProcessPerspective {
         return deviations
     }
 
+    /**
+     * Analises a Single Stage regarding Deviations
+     * Should be called internally only
+     * @param {String} stage ID of the current Stage 
+     * @param {Deviation[]} discoveredDeviations Array containing the already discovered Deviations
+     * @returns An array of Deviation instances, containing the content of 'discoveredDeviations' argument and the freshly discovered Deviations
+     */
     _analyseStage(stage, discoveredDeviations) {
-        console.log('analyse: ' + stage)
         var deviations = discoveredDeviations
         var open = new Set()
         var unopened = new Set()

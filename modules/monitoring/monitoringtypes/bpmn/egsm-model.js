@@ -2,6 +2,11 @@ var EventEmitter = require('events')
 var xml2js = require('xml2js');
 const { EgsmStage } = require('./egsm-stage');
 
+/**
+ * Class repsesenting an eGSM model
+ * Note that this is just a partial represantation of an eGSM Engine, does not include deployment logic and functionalities
+ * Class is intended to serve as local representation of an eGSM engine deployed on a Worker and be available for the translator anytime without network delays and overheads 
+ */
 class EgsmModel {
     constructor(modelXml) {
         this.model_xml = modelXml
@@ -14,10 +19,21 @@ class EgsmModel {
         this.event_emitter = new EventEmitter()
     }
 
+    /**
+     * Update a specified stage in the model
+     * @param {*} stageId ID to specify the Stage to update
+     * @param {*} status New Status
+     * @param {*} state New State
+     * @param {*} compliance New Compliance
+     */
     updateStage(stageId, status, state, compliance) {
         this.stages.get(stageId).update(status, state, compliance)
     }
 
+    /**
+     * Apply a snapshot to drive the model to a desired state
+     * @param {Object} snapshot List of Objects representing the State of each Stages 
+     */
     applySnapshot(snapshot) {
         //TODO
         //- reset all stages
@@ -25,6 +41,11 @@ class EgsmModel {
         //- apply the states from the snapshot
     }
 
+    /**
+     * Parsing the stages recursively from the provided XML and builds a Process Tree
+     * @param {String} stage ID of the currently parsed stage 
+     * @param {String} parent ID of the Parent in the Process Tree of the currently parsed stage
+     */
     _parseStageRecursive(stage, parent) {
         var children = stage['ca:SubStage'] || []
         this.stages.set(stage['$'].id, new EgsmStage(stage['$'].id, stage['$'].name, parent, undefined,
@@ -36,6 +57,9 @@ class EgsmModel {
         }
     }
 
+    /**
+     * Instantiate Stages and build Process Tree based on the provided XML eGSM model definition in the constructor
+     */
     _buildModel() {
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
@@ -50,6 +74,10 @@ class EgsmModel {
         });
     }
 
+    /**
+     * Retrieves state-status information of each Stage of the model
+     * @returns And array containing {stage_)name; status, state}
+     */
     getStageInfoArray() {
         var result = []
         for (var [key, entry] of this.stages) {

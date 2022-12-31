@@ -1,3 +1,6 @@
+/**
+ * Class responsible for notifying Stakeholders about Job Notificaations based on a provided set of Notification Rules 
+ */
 var LOG = require('../egsm-common/auxiliary/logManager')
 var DDB = require('../egsm-common/database/databaseconnector')
 var MQTT = require('../egsm-common/communication/mqttconnector')
@@ -8,6 +11,11 @@ module.id = 'NOTIFMAN'
 class NotificationManager {
     constructor() { }
 
+    /**
+     * Sends 'notification' to certain Stakeholders based on the 'notificationrules' attribute
+     * @param {Object} notification The notification Object itself containing all related attributes
+     * @param {Object} notificationrules A set of rules specifying a group of Stakeholders the notification intended for
+     */
     async notifyEntities(notification, notificationrules) {
         notification.notified = new Set()
         var promises = []
@@ -27,8 +35,10 @@ class NotificationManager {
                             }))
                             break;
                         case 'PROCESS_OWNERS':
-                            //Notifiy the Stakeholders of the processes using the artifact
-                            //TODO: Implement an MQTT discovery function listing all processes using a defined artifact and retieve the stakeholders of those processes from the DB
+                            //TODO: Here it should notify the owners of Process Instances using the Artifact included in the notification
+                            //It is not-resolved to have an 'attached_processes' attribute for each Artifact Instnaces in the database, since
+                            //the same attribute should be maintained by multiple Workers and it could lead to uncertainties
+                            //Another (and probably more feasible) approach is to perform Process Discovery trhough MQTT (similarly to 'discoverProcessGroupMembers')
                             break;
                     }
                 });
@@ -37,9 +47,12 @@ class NotificationManager {
                 notificationrules.forEach(rule => {
                     switch (rule) {
                         case 'ARTIFACT_OWNERS':
-                            //TODO: Implement an MQTT discovery function listing all artifacts attached to a defined proces instance and retrieve the stakeholders of those artifacts from DB
+                            //TODO: Here it should notify the owners of each Artifact which is attached to the Process instnace
+                            //The list of currently attached Artifacts to a certain Process Instance is not available
+                            //As an alternative the featrue can be implemented through Process Discovery as well (similarly to 'discoverProcessGroupMembers') 
                             break;
                         case 'PROCESS_OWNERS':
+                            //Notifify the Stakeholders of the Process Instance included in the Notification
                             promises.push(new Promise((resolve) => {
                                 DDB.readProcessInstance(notification.process_type, notification.process_id).then((process) => {
                                     notification.notified.add(process.stakeholders)
@@ -60,8 +73,8 @@ class NotificationManager {
 
                             break;
                         case 'PEER_ARTIFACT_USERS':
-                            //Notify the stakeholders of processes who are using the same artifact(s) as the faulty process
-                            //TODO: Write necessary MQTT discovery functions
+                            //TODO: Notify here the stakeholders of processes who are using the same artifact(s) as the faulty process
+                            //It should be implemented through Process Discovery and the part of the necessary features will be available in artifact -> 'PROCESS_OWNERS' 
                             break;
                     }
                 });

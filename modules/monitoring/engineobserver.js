@@ -1,5 +1,8 @@
+/**
+ * Module responsible for receive Events from Processes and forward these events to other interested modules
+ * The communication is happening through MQTT, the module performs the necessary subscriptions
+ */
 var UUID = require('uuid');
-var events = require('events');
 
 var LOG = require('../egsm-common/auxiliary/logManager')
 var MQTT = require('../egsm-common/communication/mqttconnector')
@@ -11,19 +14,20 @@ const TOPIC_PROCESS_LIFECYCLE = 'process_lifecycle'
 
 module.id = "OBSV"
 
-var eventEmitter = new events.EventEmitter();
-
-//Map to store default MQTT broker of each engine instances
 /**
  * Map to store default MQTT broker of each engine instances, 
  * furthermore a counter indicates how many monitoring activity is using the engine
  * This value is used to avoid unnecessary MQTT subscription function calls and to 
- * remove the engine from this map only when no activity left subcribed to its topics
+ * remove the engine from this map only when no activity left subscribed to its topics
  */
 var ENGINES = new Map()
 
 var MONITORED_BROKERS = new Set() //HOST:PORT
 
+/**
+ * Adding a new Broker to the set of observed Brokers
+ * @param {Broker} broker New Broker object to include in the observation 
+ */
 function addMonitoredBroker(broker) {
     LOG.logSystem('DEBUG', `Adding monitored broker: ${broker.host}:${broker.port}`, module.id)
     MQTT.createConnection(broker.host, broker.port, broker.username, broker.password, 'aggregator-agent-' + UUID.v4())
@@ -31,6 +35,10 @@ function addMonitoredBroker(broker) {
     MONITORED_BROKERS.add(broker.host + ':' + broker.port)
 }
 
+/**
+ * Remove a Broker among observed Brokers
+ * @param {Broker} broker Broker Object
+ */
 function removeMonitoredBroker(broker) {
     LOG.logSystem('DEBUG', `Removing monitored broker: ${broker.host}:${broker.port}`, module.id)
     if (MONITORED_BROKERS.has(broker.host + ':' + broker.port)) {
@@ -39,6 +47,14 @@ function removeMonitoredBroker(broker) {
     }
 }
 
+/**
+ * Called when a new MQTT message received
+ * @param {String} hostname 
+ * @param {Number} port 
+ * @param {String} topic Topic the message received from 
+ * @param {String} message The message itself
+ * @returns 
+ */
 function onMessageReceived(hostname, port, topic, message) {
     if(topic != TOPIC_PROCESS_LIFECYCLE){
         return
@@ -65,17 +81,22 @@ function onMessageReceived(hostname, port, topic, message) {
     }
 }
 
-async function addEngine(engineid, onchange) {
-    LOG.logWorker('DEBUG', `addEngine called: ${engineid} -> ${hostname}:${port}`, module.id)
+/**
+ * Subscribing to the event of a specified process
+ * @param {String} instance_id Instance ID of the process
+ * @param {Object} onchange Function to call in case of a new Event received
+ */
+async function addProcess(instance_id, onchange) {
+    LOG.logWorker('DEBUG', `addProcess called: ${instance_id} -> ${hostname}:${port}`, module.id)
     //Add engine to the module collections
-    if (!ENGINES.has(engineid)) {
+    if (!ENGINES.has(instance_id)) {
         //Retrieving engine details from Database
-        //var elements = engineid.split('/')
+        //var elements = instance_id.split('/')
         //var type = elements[0]
         //var instanceid = elements[1]
         //var retrieved = await DB.readProcessInstance(type, instanceid)
         //if (retrieved == undefined) {
-        //    LOG.logWorker('ERROR', `Process [${engineid}] is not registered in the database, it cannot be monitored`, module.id)
+        //    LOG.logWorker('ERROR', `Process [${instance_id}] is not registered in the database, it cannot be monitored`, module.id)
         //    return
         //}
         //TODO: Read broker from database instead
@@ -85,33 +106,38 @@ async function addEngine(engineid, onchange) {
         var hostname = broker.host
         var port = broker.port
 
-        ENGINES.set(engineid, { hostname: hostname, port: port, onchange: new Set([onchange]) })
+        ENGINES.set(instance_id, { hostname: hostname, port: port, onchange: new Set([onchange]) })
         if (!MONITORED_BROKERS.has(hostname + ':' + port.toString())) {
             addMonitoredBroker(broker)
         }
-        MQTT.subscribeTopic(hostname, port, engineid + '/stage_log')
-        MQTT.subscribeTopic(hostname, port, engineid + '/artifact_log')
-        MQTT.subscribeTopic(hostname, port, engineid + '/adhoc')
+        MQTT.subscribeTopic(hostname, port, instance_id + '/stage_log')
+        MQTT.subscribeTopic(hostname, port, instance_id + '/artifact_log')
+        MQTT.subscribeTopic(hostname, port, instance_id + '/adhoc')
     }
     else {
-        LOG.logWorker('DEBUG', `Engine [${engineid}] is alredy registered`, module.id)
-        ENGINES.get(engineid).onchange.add(onchange)
+        LOG.logWorker('DEBUG', `Process [${instance_id}] is alredy registered`, module.id)
+        ENGINES.get(instance_id).onchange.add(onchange)
     }
 }
 
-function removeEngine(engineid, onchange) {
-    LOG.logWorker('DEBUG', `removeEngine called: ${engineid}`, module.id)
-    if (ENGINES.has(engineid) && ENGINES.get(engineid).onchange.size == 1) {
-        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/stage_log')
-        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/artifact_log')
-        MQTT.unsubscribeTopic(ENGINES.get(engineid).hostname, ENGINES.get(engineid).port, engineid + '/adhoc')
-        ENGINES.delete(engineid)
+/**
+ * Unsubscribe from the events of a Process Instance
+ * @param {String} instance_id Instance ID of the Process Instance
+ * @param {Object} onchange Function to call in case of an event
+ */
+function removeProcess(instance_id, onchange) {
+    LOG.logWorker('DEBUG', `removeProcess called: ${instance_id}`, module.id)
+    if (PROCESSES.has(instance_id) && PROCESSES.get(instance_id).onchange.size == 1) {
+        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/stage_log')
+        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/artifact_log')
+        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/adhoc')
+        PROCESSES.delete(instance_id)
     }
-    else if (ENGINES.has(engineid) && ENGINES.get(engineid).onchange.size > 1) {
-        ENGINES.get(engineid).onchange.delete(onchange)
+    else if (PROCESSES.has(instance_id) && PROCESSES.get(instance_id).onchange.size > 1) {
+        PROCESSES.get(instance_id).onchange.delete(onchange)
     }
     else {
-        LOG.logWorker('WARNING', `Engine [${engineid}] cannot be removed, it is not registered`, module.id)
+        LOG.logWorker('WARNING', `Process [${instance_id}] cannot be removed, it is not registered`, module.id)
     }
 }
 
@@ -121,6 +147,6 @@ MQTT.init(onMessageReceived)
 module.exports = {
     addMonitoredBroker: addMonitoredBroker,
     removeMonitoredBroker: removeMonitoredBroker,
-    addEngine: addEngine,
-    removeEngine: removeEngine,
+    addProcess: addProcess,
+    removeProcess: removeProcess,
 }

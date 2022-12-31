@@ -5,11 +5,13 @@ var CONNCONFIG = require('../egsm-common/config/connectionconfig')
 const { JobFactory } = require('./jobfactory');
 const { NotificationManager } = require('../communication/notificationmanager');
 
-
 const MAX_JOBS = 500
 
 module.id = "MONITORMAN"
 
+/**
+ * Singleton class handling the lifecycle of Jobs and Job-related Objects
+ */
 class MonitoringManager {
     constructor() {
         this.notification_manager = new NotificationManager()
@@ -18,6 +20,10 @@ class MonitoringManager {
         this.jobs = new Map()
     }
 
+    /**
+     * Starting a new Job based on the provided configuration
+     * @param {Object} jobconfig Job configuration Object should contain all necessary data attributes
+     */
     startJob(jobconfig) {
         var newjob = this.job_factory.buildJob(jobconfig)
         if (newjob) {
@@ -28,6 +34,10 @@ class MonitoringManager {
         LOG.logSystem('WARNING', `Could not start Monitoring Activity...`, module.id)
     }
 
+    /**
+     * Terminates a specified Job
+     * @param {String} jobid ID of the Job to terminate 
+     */
     stopJob(jobid) {
         if (this.jobs.has(jobid)) {
             LOG.logSystem('DEBUG', `Stopping Monitoring Activity ${jobid}`, module.id)
@@ -38,10 +48,18 @@ class MonitoringManager {
         LOG.logSystem('WARNING', `Monitoring Activity ${jobid} is not defined, cannot be removed`, module.id)
     }
 
+    /**
+     * Get a list of jobs
+     */
     getAllJobs() {
 
     }
 
+    /**
+     * Get details of a specified Job
+     * @param {String} jobid ID of the Job whose details are requested  
+     * @returns Job instance or 'undefined' in case of not found
+     */
     getJob(jobid) {
         if (this.jobs.has(jobid)) {
             return this.jobs.get(jobid)
@@ -49,6 +67,11 @@ class MonitoringManager {
         return undefined
     }
 
+    /**
+     * Get Details of a job in a special format
+     * @param {String} jobid ID of the Job whose details are requested  
+     * @returns A prepared Object containing certain details of the Job and the Aggregator instance as well ('undefined' in case of not found)
+     */
     getJobInfo(jobid) {
         if (this.jobs.has(jobid)) {
             console.log('JOB FOUND')
@@ -63,6 +86,10 @@ class MonitoringManager {
         return undefined
     }
 
+    /**
+     * Check if the MonitoringManager has free Job slot
+     * @returns True if it has free slot, false otherwise
+     */
     hasFreeSlot() {
         if (this.jobs.size < MAX_JOBS) {
             return true
@@ -70,14 +97,26 @@ class MonitoringManager {
         return false
     }
 
+    /**
+     * Get the maximum Job capacity (maximum number of Jobs allowed to be deployed at the same time)
+     * @returns The maximum Job capacity of the MonitoringManager 
+     */
     getCapacity() {
         return MAX_JOBS
     }
 
+    /**
+     * Get the number of currently deployed Jobs
+     * @returns Number of currently Deployed Jobs
+     */
     getNumberOfJobs() {
         return this.jobs.size
     }
 
+    /**
+     * Get Singleton instance
+     * @returns Returns the singleton instance of MonitoringManager
+     */
     static getInstance() {
         if (!MonitoringManager.instance) {
             MonitoringManager.instance = new MonitoringManager();
