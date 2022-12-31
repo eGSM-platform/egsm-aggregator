@@ -1,5 +1,6 @@
-var events = require('events');
-
+/**
+ * Module intended to maintain the set of member processes of each used Process Group
+ */
 var LOG = require('../egsm-common/auxiliary/logManager')
 var DB = require('../egsm-common/database/databaseconnector')
 var MQTTCONN = require('../communication/mqttcommunication');
@@ -9,8 +10,14 @@ module.id = "GROUPMAN"
 
 var LOADED_GROUPS = new Map() //groupid -> {member_processes:set(), onchange:set(), membership_rules:string} 
 
+/**
+ * Called in case of a Process lifecycle event
+ * The function will check if the new process instance meets with the membership rules of any active Process Group and if yes adds it
+ * In case of a Process Instance destruction event, it will remove the Process Instance from all Process Groups 
+ * @param {Object} messageObj Lifecycle message received 
+ */
 function onProcessLifecycleEvent(messageObj) {
-    //Iterating through the loaded groups and adding the new process if is staisfies the rules
+    //Iterating through the loaded groups and adding the new process if is satisfies the rules
     var processid = messageObj.process.process_type + '/' + messageObj.process.instance_id
     for (var [groupName, group] of LOADED_GROUPS.entries()) {
         if (messageObj.type == 'created') {
@@ -32,7 +39,15 @@ function onProcessLifecycleEvent(messageObj) {
     }
 }
 
-
+/**
+ * Jobs can subscribe changes of Process Groups
+ * When this function called it will load the membership rules of the Process Group from the Database and initiate a Process Discovery, which
+ * will find all active Process Instances satisfying the rules. This function will return the list of these Process Instances, furthermore if later
+ * a new Process Instance satisfies the rules, or if a member instance will be terminated the Job will be notified about this change by calling 'onchange'
+ * @param {String} groupid Name of the Process Group
+ * @param {Object} onchange The function to call in case of subsequent changes in member Process Instances
+ * @returns 
+ */
 async function subscribeGroupChanges(groupid, onchange) {
     var promise = new Promise(function (resolve, reject) {
         if (LOADED_GROUPS.has(groupid)) {
@@ -41,9 +56,7 @@ async function subscribeGroupChanges(groupid, onchange) {
         }
         else {
             DB.readProcessGroup(groupid).then(async (groupData) => {
-                console.log('DB:' + JSON.stringify(groupData))
                 if (groupData == undefined) {
-                    console.log('undefined')
                     LOG.logSystem('WARNING', `Requested Process Group [${groupid}] is not defined in the Database`)
                     return resolve(new Set())
                 }
@@ -51,15 +64,20 @@ async function subscribeGroupChanges(groupid, onchange) {
                 LOG.logSystem('DEBUG', `Requested Process Group [${groupid}] is found in the Database`)
                 MQTTCONN.discoverProcessGroupMembers(JSON.parse(groupData.membership_rules)).then((processes) => {
                     LOADED_GROUPS.set(groupid, { membership_rules: JSON.parse(groupData.membership_rules), member_processes: new Set(...processes), onchange: new Set([onchange]) })
-                    console.log('LOADED:' + JSON.stringify(LOADED_GROUPS))
                     return resolve(processes)
-                })  
+                })
             })
         }
     });
     return promise
 }
 
+/**
+ * Job can unsubscribe from changes of a certain Process Group
+ * @param {String} groupid Process Group ID
+ * @param {Object} onchange The notification function of the Job (provided earlier in the 'subscribeGroupChanges' function)
+ * @returns 
+ */
 function unsubscribeGroupChanges(groupid, onchange) {
     if (!LOADED_GROUPS.has(groupid)) {
         console.error("Group not loaded")

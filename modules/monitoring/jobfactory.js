@@ -1,12 +1,25 @@
 const { ArtifactUsageStatisticProcessing } = require("./monitoringtypes/artifact-usage-statistic-processing")
 const { ArtifactUnreliabilityAlert } = require("./monitoringtypes/artifact-unreliability-alert")
 const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviation-detection")
+var CONNCONF = require('../egsm-common/config/connectionconfig')
+const { BpmnJob } = require("./monitoringtypes/bpmn/bpmn-job")
 
+/**
+ * Factory class to create Job instances based on the provided configuration
+ */
 class JobFactory {
+    /**
+     * @param {Object} notificationmanager Reference to the NotificationManager instance intended to be used by the created Jobs 
+     */
     constructor(notificationmanager) {
         this.notification_manager = notificationmanager
     }
 
+    /**
+     * Creates a new Job based on the provided 'config' attribute 
+     * @param {Object} config Configuration Object containing all necessary attributes to build a job
+     * @returns A new Job object
+     */
     buildJob(config) {
         //Considering config contains the config of 1 job only
         try {
@@ -27,17 +40,25 @@ class JobFactory {
                     return new ArtifactUnreliabilityAlert(id, owner, monitoredartifacts, faultinessthreshold, windowsize, frequency, notificationrules, this.notification_manager)
                 }
                 case 'process-deviation-detection': {
-                    var brokers = config['brokers']
+                    //var brokers = config['brokers']
+                    var brokers = [CONNCONF.getConfig().primary_broker]
                     var monitored = config['monitored']
                     var monitoredprocessgroups = config['monitoredprocessgroups']
                     var notificationrules = config['notificationrules']
                     return new ProcessDeviationDetection(id, brokers, owner, monitored, monitoredprocessgroups, notificationrules, this.notification_manager)
+                }
+                case 'bpmn-job': {
+                    var monitored = config['monitored']
+                    var notificationrules = config['notificationrules']
+                    var perspectives = config['perspectives']
+                    return new BpmnJob(config['id'], [], owner, monitored, [], notificationrules, this.notification_manager,perspectives)
                 }
                 //Add further types when implemented!
                 default:
                     return undefined
             }
         } catch (error) {
+            console.warn(error)
             return undefined
         }
     }
