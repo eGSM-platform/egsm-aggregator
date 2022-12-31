@@ -17,10 +17,10 @@ const ID_VERIFICATION_PERIOD = 1500 //Time the other Aggregators has to reply if
 const PROCESS_DISCOVERY_PERIOD = 1500
 
 //Topic definitions
-const SUPERVISOR_TOPIC_IN = 'supervisor_aggregator_in'
-const SUPERVISOR_TOPIC_OUT = 'supervisor_aggregator_out'
-const AGGREGATOR_GLOBAL_TOPIC_IN = 'aggregator_worker_in'
-const AGGREGATOR_GLOBAL_TOPIC_OUT = 'aggregator_global_out'
+const AGGREGATORS_TO_SUPERVISORS = 'aggregators_to_supervisor'
+const SUPERVISOR_TO_AGGREGATORS = 'supervisor_to_aggregators'
+const WORKERS_TO_AGGREGATORS = 'workers_to_aggregators'
+const AGGREGATORS_TO_WORKERS = 'aggregators_to_workers'
 
 var MQTT_HOST = undefined
 var MQTT_PORT = undefined;
@@ -34,7 +34,7 @@ var MONITORING_MANAGER = undefined
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
-    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TOPIC_OUT && topic != CONNCONFIG.getConfig().self_id && topic != AGGREGATOR_GLOBAL_TOPIC_IN)) {
+    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TO_AGGREGATORS && topic != CONNCONFIG.getConfig().self_id && topic != WORKERS_TO_AGGREGATORS)) {
         LOG.logSystem('DEBUG', `Reveived message is not intended to handle here`, module.id)
         return
     }
@@ -47,9 +47,9 @@ function onMessageReceived(hostname, port, topic, message) {
     if (!MONITORING_MANAGER) {
         LOG.logSystem('WARNING', `Monitoring Manager has not been added to MQTT Communication module. Some features may no work as intended!`, module.id)
     }
-    //The message has been published by the supervisor to the shared SUPERVISOR_TOPIC_OUT
+    //The message has been published by the supervisor to the shared SUPERVISOR_TO_AGGREGATORS
     //These messages have been delived to all other Aggregators too
-    if (topic == SUPERVISOR_TOPIC_OUT) {
+    if (topic == SUPERVISOR_TO_AGGREGATORS) {
         switch (msgJson['message_type']) {
             case 'PING': {
                 LOG.logSystem('DEBUG', `PING requested`, module.id)
@@ -65,7 +65,7 @@ function onMessageReceived(hostname, port, topic, message) {
                         capacity: MONITORING_MANAGER.getCapacity()
                     }
                 }
-                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 break;
             }
             case 'NEW_JOB_SLOT': {
@@ -77,7 +77,7 @@ function onMessageReceived(hostname, port, topic, message) {
                         message_type: 'NEW_JOB_SLOT_RESP',
                         sender_id: CONNCONFIG.getConfig().self_id
                     }
-                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 }
                 break
             }
@@ -90,13 +90,13 @@ function onMessageReceived(hostname, port, topic, message) {
                         sender_id: CONNCONFIG.getConfig().self_id,
                         payload: { job: MONITORING_MANAGER.getJobInfo(msgJson['payload']['job_id']) },
                     }
-                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 }
                 break
             }
         }
     }
-    else if (topic == AGGREGATOR_GLOBAL_TOPIC_IN) {
+    else if (topic == WORKERS_TO_AGGREGATORS) {
         switch (msgJson['message_type']) {
             case 'PROCESS_GROUP_MEMBER_DISCOVERY_RESP': {
                 LOG.logSystem('DEBUG', `PROCESS_GROUP_MEMBER_DISCOVERY_RESP message received, request_id: [${msgJson['request_id']}]`, module.id)
@@ -118,7 +118,7 @@ function onMessageReceived(hostname, port, topic, message) {
                     payload: { result: result },
                     message_type: 'NEW_JOB_RESP'
                 }
-                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 break;
             }
             //case 'GET_JOB_LIST': {
@@ -129,7 +129,7 @@ function onMessageReceived(hostname, port, topic, message) {
             //        payload: resPayload,
             //        message_type: 'GET_JOB_LIST_RESP'
             //    }
-            //    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+            //    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
             //    break;
             //}
 
@@ -193,8 +193,8 @@ async function initPrimaryBrokerConnection(broker) {
             MQTT.unsubscribeTopic(MQTT_HOST, MQTT_PORT, topicSelf)
         }
     }
-    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_IN)
-    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_OUT)
+    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, WORKERS_TO_AGGREGATORS)
+    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TO_AGGREGATORS)
     return topicSelf
 }
 
@@ -210,7 +210,7 @@ async function discoverProcessGroupMembers(rules) {
         "message_type": 'PROCESS_GROUP_MEMBER_DISCOVERY',
         "payload": { "rules": rules }
     }
-    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_OUT, JSON.stringify(message))
+    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_WORKERS, JSON.stringify(message))
     var promise = new Promise(async function (resolve, reject) {
         REQUEST_PROMISES.set(request_id, resolve)
         REQUEST_BUFFERS.set(request_id, [])
