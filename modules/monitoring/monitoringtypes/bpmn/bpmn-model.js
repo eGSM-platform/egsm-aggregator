@@ -29,6 +29,10 @@ class BpmnModel {
      * The result is saved in the this.parsed_model_xml attribute
      */
     parseModelXml() {
+        if(this.model_xml == undefined){
+            this.parsed_model_xml = undefined
+            return
+        }
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
             if (err) {
@@ -43,6 +47,9 @@ class BpmnModel {
      * As a prerequirement parseModelXml() function has to be called before this function
      */
     _buildModel() {
+        if(this.parsed_model_xml == undefined){
+            return
+        }
         //Creating a temporary map containing all blocks and their position information, to make data retieval efficient
         //The information from this map will be used during block instantiations
         var diagram_elements = new Map()

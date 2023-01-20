@@ -51,7 +51,7 @@ class JobFactory {
                     var monitored = config['monitored']
                     var notificationrules = config['notificationrules']
                     var perspectives = config['perspectives']
-                    return new BpmnJob(config['id'], [], owner, monitored, [], notificationrules, this.notification_manager,perspectives)
+                    return new BpmnJob(config['id'], [], owner, monitored, [], notificationrules, this.notification_manager, perspectives)
                 }
                 //Add further types when implemented!
                 default:

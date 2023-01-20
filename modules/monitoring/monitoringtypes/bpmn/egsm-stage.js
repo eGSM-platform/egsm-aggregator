@@ -24,7 +24,7 @@ class EgsmStage {
         this.state = "UNOPENED" //UNOPENED-OPEN-CLOSED
         this.compliance = "ONTIME" //ONTIME-SKIPPED-OUTOFORDER
         this.children = []
-        this.propagated_conditions = new Set()
+        this.propagated_conditions = new Set() //SHOULD_BE_CLOSED/
     }
 
     /**

@@ -46,7 +46,7 @@ class BpmnJob extends Job {
   getBpmnOverlay() {
     var overlays = []
     this.perspectives.forEach(element => {
-      element.analyse()
+      element.analyze()
       overlays = overlays.concat(element.bpmn_model.getOverlay())
     });
     var result = {
@@ -75,7 +75,7 @@ class BpmnJob extends Job {
       })
     });
     this.perspectives.forEach(element => {
-      element.analyse()
+      element.analyze()
       overlays = overlays.concat(element.bpmn_model.getOverlay())
     });
     var result = {
