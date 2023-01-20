@@ -215,7 +215,7 @@ class BpmnModel {
      */
     applyDeviation(deviation) {
         switch (deviation.type) {
-            //SkipDeviation consists of an OutOfOrder activityand a Skipped Sequence
+            //SkipDeviation consists of an OutOfOrder activity and a Skipped Sequence
             //It is represented as an arrow from the last correctly executed activity to the
             //OutOfOrder one
             case 'SKIPPED':
@@ -304,8 +304,8 @@ class BpmnModel {
      */
     getModelXml(deviation, deviation2) {
         //TMP
-        this.applyDeviation(deviation)
-        this.applyDeviation(deviation2)
+        //this.applyDeviation(deviation)
+        //this.applyDeviation(deviation2)
         //TMP
         var builder = new xml2js.Builder();
         return builder.buildObject(this.parsed_model_xml);

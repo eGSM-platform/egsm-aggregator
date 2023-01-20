@@ -56,9 +56,9 @@ function removeMonitoredBroker(broker) {
  * @returns 
  */
 function onMessageReceived(hostname, port, topic, message) {
-    if(topic != TOPIC_PROCESS_LIFECYCLE){
+    /*if(topic != TOPIC_PROCESS_LIFECYCLE){
         return
-    }
+    }*/
     LOG.logWorker('DEBUG', `onMessageReceived called`, module.id)
     try {
         var msgJson = JSON.parse(message.toString())
@@ -72,7 +72,7 @@ function onMessageReceived(hostname, port, topic, message) {
         return
     }
     //The message is from an engine-specific topic
-    var processid = msgJson['process_type'] + '/' + msgJson['instnace_id']
+    var processid = msgJson['process_type'] + '/' + msgJson['process_id'] + '__' + msgJson['process_perspective']
     if (ENGINES.has(processid)) {
         //Notify Jobs
         ENGINES.get(processid).onchange.forEach(jobnotify => {

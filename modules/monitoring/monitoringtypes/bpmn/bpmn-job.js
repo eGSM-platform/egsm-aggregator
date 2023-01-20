@@ -19,6 +19,20 @@ class BpmnJob extends Job {
   }
 
   onProcessEvent(messageObj) {
+    console.log(messageObj)
+    var process = messageObj.process_type + '/' + messageObj.process_id + '__' + messageObj.process_perspective
+    if (this.monitoredprocesses.has(process)) {
+      if (this.perspectives.has(messageObj.process_perspective)) {
+        var perspective = this.perspectives.get(messageObj.process_perspective)
+        var egsm = perspective.egsm_model
+        if (egsm.stages.has(messageObj.stage_name)) {
+          egsm.updateStage(messageObj.stage_name, messageObj.status, messageObj.state, messageObj.compliance)
+          var deviations = perspective.analyze()
+          this.triggerCompleteUpdateEvent()
+          console.log(deviations)
+        }
+      }
+    }
     /*var errors = Validator.validateProcessStage(messageObj.stage)
     if (errors.length > 0) {
         console.debug(`Faulty stage of process [${messageObj.processtype}/${messageObj.instanceid}]__${messageObj.perspective} detected: ${JSON.stringify(errors)}`)
@@ -56,12 +70,12 @@ class BpmnJob extends Job {
     return result
   }
 
-  getCompleteUpdate(){
+  getCompleteUpdate() {
     //TMP
     //var deviation = new SkipDeviation(['s_processstarted'], 'ParallelGateway_1')
-    var deviation = new SkipDeviation(['ParallelGateway_1','attach_container'], 'drive_to_terminal')
+    var deviation = new SkipDeviation(['ParallelGateway_1', 'attach_container'], 'drive_to_terminal')
     var deviation2 = new SkipDeviation(['detach_container'], 'c_portion_ended')
-    var deviation3 =  new IncompleteDeviation('drive_to_terminal')
+    var deviation3 = new IncompleteDeviation('drive_to_terminal')
     //TMP
     var overlays = []
     var resultPerspectives = []
@@ -88,7 +102,7 @@ class BpmnJob extends Job {
 
   triggerCompleteUpdateEvent() {
     console.info('EMIT')
-    
+
     this.eventEmitter.emit('job-update', this.getCompleteUpdate())
     //this.eventEmitter.emit('job-update', this.getBpmnOverlay())
     //var context = this
