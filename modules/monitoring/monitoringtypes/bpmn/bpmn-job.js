@@ -26,7 +26,10 @@ class BpmnJob extends Job {
         var perspective = this.perspectives.get(messageObj.process_perspective)
         var egsm = perspective.egsm_model
         if (egsm.stages.has(messageObj.stage_name)) {
-          egsm.updateStage(messageObj.stage_name, messageObj.status, messageObj.state, messageObj.compliance)
+          if(messageObj.state == 'opened'){
+            messageObj.state = 'open'
+          }
+          egsm.updateStage(messageObj.stage_name, messageObj.status.toUpperCase(), messageObj.state.toUpperCase(), messageObj.compliance.toUpperCase())
           var deviations = perspective.analyze()
           this.triggerCompleteUpdateEvent()
           console.log(deviations)
