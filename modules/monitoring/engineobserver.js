@@ -21,6 +21,7 @@ module.id = "OBSV"
  * remove the engine from this map only when no activity left subscribed to its topics
  */
 var ENGINES = new Map()
+var PROCESS_TYPES = new Map()
 
 var MONITORED_BROKERS = new Set() //HOST:PORT
 
@@ -127,19 +128,20 @@ async function addProcess(instance_id, onchange) {
  */
 function removeProcess(instance_id, onchange) {
     LOG.logWorker('DEBUG', `removeProcess called: ${instance_id}`, module.id)
-    if (PROCESSES.has(instance_id) && PROCESSES.get(instance_id).onchange.size == 1) {
-        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/stage_log')
-        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/artifact_log')
-        MQTT.unsubscribeTopic(PROCESSES.get(instance_id).hostname, PROCESSES.get(instance_id).port, instance_id + '/adhoc')
-        PROCESSES.delete(instance_id)
+    if (ENGINES.has(instance_id) && ENGINES.get(instance_id).onchange.size == 1) {
+        MQTT.unsubscribeTopic(ENGINES.get(instance_id).hostname, ENGINES.get(instance_id).port, instance_id + '/stage_log')
+        MQTT.unsubscribeTopic(ENGINES.get(instance_id).hostname, ENGINES.get(instance_id).port, instance_id + '/artifact_log')
+        MQTT.unsubscribeTopic(ENGINES.get(instance_id).hostname, ENGINES.get(instance_id).port, instance_id + '/adhoc')
+        ENGINES.delete(instance_id)
     }
-    else if (PROCESSES.has(instance_id) && PROCESSES.get(instance_id).onchange.size > 1) {
-        PROCESSES.get(instance_id).onchange.delete(onchange)
+    else if (ENGINES.has(instance_id) && ENGINES.get(instance_id).onchange.size > 1) {
+        ENGINES.get(instance_id).onchange.delete(onchange)
     }
     else {
         LOG.logWorker('WARNING', `Process [${instance_id}] cannot be removed, it is not registered`, module.id)
     }
 }
+
 
 //Setting up MQTT environment
 MQTT.init(onMessageReceived)
@@ -148,5 +150,5 @@ module.exports = {
     addMonitoredBroker: addMonitoredBroker,
     removeMonitoredBroker: removeMonitoredBroker,
     addProcess: addProcess,
-    removeProcess: removeProcess,
+    removeProcess: removeProcess
 }
