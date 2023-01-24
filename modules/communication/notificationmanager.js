@@ -83,7 +83,7 @@ class NotificationManager {
         await Promise.all(promises)
         notification.notified = [...notification.notified]
         notification.notified.forEach(entry => {
-            notifyStakeholder(entry, notification)
+            this.notifyStakeholder(entry, notification)
         });
     }
     /**

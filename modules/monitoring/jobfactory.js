@@ -1,3 +1,4 @@
+const {ArtifactEventProcessing} = require('./monitoringtypes/artifact-event-processing')
 const { ArtifactUsageStatisticProcessing } = require("./monitoringtypes/artifact-usage-statistic-processing")
 const { ArtifactUnreliabilityAlert } = require("./monitoringtypes/artifact-unreliability-alert")
 const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviation-detection")
@@ -26,6 +27,10 @@ class JobFactory {
             var id = config['id']
             var owner = config['owner']
             switch (config['type']) {
+                case 'artifact-event-processing': {
+                    var frequency = config['frequency']
+                    return new ArtifactEventProcessing(id, owner, frequency)
+                }
                 case 'artifact-usage-statistic-processing': {
                     var monitoredartifacts = config['monitoredartifacts']
                     var frequency = config['frequency']

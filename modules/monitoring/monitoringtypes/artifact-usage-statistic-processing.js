@@ -23,8 +23,19 @@ class ArtifactUsageStatisticProcessing extends Job {
         if (ArtifactUsageStatisticProcessing.initialized) {
             throw new Error('ArtifactUsageStatisticProcessing is not allowed to start twice!');
         }
-        super(id, 'artifact-usage0statistic-processing', [], owner, [], [], monitoredartifacts, [], undefined)
+        super(id, 'artifact-usage-statistic-processing', [], owner, [], [], monitoredartifacts, [], undefined)
         this.frequency = frequency
+        for (var i = 2; i < 6; i += 2) {
+            this.monitoredartifacts.forEach(artifact => {
+                var iTmp = i
+                DB.getArtifactFaultyRateValue(artifact.type, artifact.id, iTmp).then((result) =>{
+                    if (result == undefined) {
+                        DB.addNewFaultyRateWindow(artifact.type, artifact.id, iTmp)
+                    }
+                })
+            })
+        }
+
         this.setPeriodicCall(this.onPeriodElapsed.bind(this), frequency)
         this.initialized = true
     }
@@ -36,10 +47,9 @@ class ArtifactUsageStatisticProcessing extends Job {
         this.monitoredartifacts.forEach(element => {
             DB.readArtifactDefinition(element.type, element.id).then((artifact) => {
                 if (artifact == undefined) {
-                    console.log('No artifact definition found')
+                    console.warn('No artifact definition found')
                     return
                 }
-                console.log('Artifact definition found')
                 //Find the entry with the smallest earliest_usage_entry_time (apply MAX_CONSIDERING_PERIOD in case of -1)
                 //And read the Artifact Usage entries from the calculated timestamp
                 var earliestTime = Date.now() / 1000
@@ -62,14 +72,18 @@ class ArtifactUsageStatisticProcessing extends Job {
                         var successCnt = 0
                         var newFaultyRateWindow = new FaultyRateWindow(key, -1, -1, -1)
                         for (var i = 0; i < artifactUsageEntries.length; i++) {
-                            if (artifactUsageEntries[i].outcome == 'success') {
+                            if (artifactUsageEntries[i].outcome == 'SUCCESS') {
                                 successCnt += 1
                             }
                             else {
                                 faultyCnt += 1
                             }
                             if (faultyCnt + successCnt >= key) {
-                                var newFaultyRateWindow = new FaultyRateWindow(key, (faultyCnt / successCnt) * 100, Math.floor(Date.now() / 1000), artifactUsageEntries[i].detach_time)
+                                var newValue = 100
+                                if(successCnt != 0){
+                                    newValue = (faultyCnt / successCnt) * 100
+                                }
+                                var newFaultyRateWindow = new FaultyRateWindow(key, newValue, Math.floor(Date.now() / 1000), artifactUsageEntries[i].detach_time)
                                 var nameElements = artifactUsageEntries[i].artifact_name.split('/')
                                 DB.updateArtifactFaultyRate(nameElements[0], nameElements[1], newFaultyRateWindow)
                                 break
