@@ -1,4 +1,4 @@
-# Supervisor Application for eGSM Monitoring Platform
+# Aggregator Agent Application for eGSM Monitoring Platform
 eGSM Monitoring Platform is a microservice-based, distributed business process monitoring platform. Its operation is based on Engine Workers and Aggregator Agents.
 This application is the aggregator component of the system, which is capable to perform information aggregation, routing notifications to stakeholders and performing eGSM to BPMN conversion. The architecture can contain more of this module at the same time, the necessary port setups are happening in runtime automatically.
 

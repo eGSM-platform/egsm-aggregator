@@ -135,6 +135,7 @@ class ProcessPerspective {
      * @returns An array of Deviation instances, containing the content of 'discoveredDeviations' argument and the freshly discovered Deviations
      */
     _analyzeStage(stage, discoveredDeviations) {
+        console.log('analyze stage:' + stage)
         var deviations = discoveredDeviations
         var open = new Set()
         var unopened = new Set()
@@ -285,16 +286,44 @@ class ProcessPerspective {
                         this.egsm_model.stages.get(openElement).propagateCondition('SHOULD_BE_CLOSED')
                     });
                 }
-                //For each OutOfOrder stage we can create an IncorrectBranchDeviation instnace, since they suggest that 
+                //For each OutOfOrder stage we can create an IncorrectBranchDeviation instance, since they suggest that 
                 //one or more non-intended branch has been executed, correct branch has been executed more than once
                 outOfOrder.forEach(outOfOrderElement => {
                     deviations.push(new IncorrectBranchDeviation(outOfOrderElement))
                 });
                 break;
+            case 'LOOP':
+                //In this case there is no deviation detection, but we need to propagate the conditions to the child, 
+                //which is always and ITERATION block
+                if (this.egsm_model.stages.get(stage).propagated_conditions.has('SHOULD_BE_CLOSED')) {
+                    open.forEach(openElement => {
+                        deviations.push(new IncompleteDeviation(openElement))
+                        this.egsm_model.stages.get(openElement).propagateCondition('SHOULD_BE_CLOSED')
+                    });
+                }
+                break;
             case 'ITERATION':
-
+                //For each OutOfOrder stage we can create an IncorrectExecutionSequence instance
+                outOfOrder.forEach(outOfOrderElement => {
+                    deviations.push(new IncorrectExecutionSequenceDeviation([outOfOrderElement]))
+                });
+                //It is possible that A1 has been skipped, so if there is any 'skipped' element then we 
+                //can create a Skipdeviation instance and propagate the 'SHOULD_BE_CLOSED' condition
+                skipped.forEach(skippedElement => {
+                    deviations.push(new SkipDeviation([skippedElement], 'NA'))
+                    this.egsm_model.stages.get(skippedElement).propagateCondition('SHOULD_BE_CLOSED')
+                });
+                //Finally, if the parent stage already should be closed, then for each opened children we
+                //can create an IncompleteDeviation for each 'opened' child
+                if (this.egsm_model.stages.get(stage).propagated_conditions.has('SHOULD_BE_CLOSED')) {
+                    open.forEach(openElement => {
+                        deviations.push(new IncompleteDeviation(openElement))
+                        this.egsm_model.stages.get(openElement).propagateCondition('SHOULD_BE_CLOSED')
+                    });
+                }
                 break;
         }
+        console.log('stageDeviations:' + deviations)
         return deviations
     }
 }
