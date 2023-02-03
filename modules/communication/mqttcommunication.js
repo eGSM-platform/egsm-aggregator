@@ -238,7 +238,7 @@ async function discoverProcessGroupMembers(rules) {
             //In case of multiple perspectives one process instance can be represented multiple times,
             //so we need to handle it, since we want only process_type + process_instance 
             result.forEach(engine => {
-                final.add(engine.type + '/' + engine.instance_id)
+                final.add(engine.name)
             });
             resolve(final)
         }

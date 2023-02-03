@@ -55,6 +55,20 @@ class BpmnBlock {
     getBlockColor() {
         console.warn('This function is not applicable for ' + this.id + ' The function should be overwritten')
     }
+
+    /**
+    * Updates the status and state of the Task
+    * @param {String} status New status of the Task. Use undefined if not intended to update 
+    * @param {String} state New state of the Task. Use undefined if not intended to update
+    */
+    update(status, state) {
+        if (status) {
+            this.status = status
+        }
+        if (state) {
+            this.state = state
+        }
+    }
 }
 
 /**
@@ -72,20 +86,6 @@ class BpmnTask extends BpmnBlock {
         super(id, name, inputs, outputs, position.x, position.y, position.width, position.height)
         this.status = 'REGULAR' //REGULAR-FAULTY
         this.state = 'UNOPENED' //UNOPENED-ENABLED-RUNNING-COMPLETED-SKIPPED
-    }
-
-    /**
-     * Updates the status and state of the Task
-     * @param {String} status New status of the Task. Use undefined if not intended to update 
-     * @param {String} state New state of the Task. Use undefined if not intended to update
-     */
-    update(status, state) {
-        if (status) {
-            this.status = status
-        }
-        if (state) {
-            this.state = state
-        }
     }
 
     /**

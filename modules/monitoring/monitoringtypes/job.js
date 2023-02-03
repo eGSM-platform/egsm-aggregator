@@ -78,6 +78,10 @@ class Job {
         this.monitoredprocesses.delete(processid)
         OBSERVER.removeProcess(processid, this.onProcessEvent.bind(this))
     }
+    
+    getExtract(){
+        return undefined
+    }
 
     /**
      * Terminate the Job

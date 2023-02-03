@@ -12,9 +12,9 @@ class EgsmModel {
         this.model_xml = modelXml
         this.model_roots = []
         this.stages = new Map()
-        this.event_queue = []
-        this.changed_stages = []
-        this.rule_violations = []
+        //this.event_queue = []
+        //this.changed_stages = []
+        //this.rule_violations = []
         this._buildModel(modelXml)
         this.event_emitter = new EventEmitter()
     }
@@ -61,6 +61,9 @@ class EgsmModel {
      * Instantiate Stages and build Process Tree based on the provided XML eGSM model definition in the constructor
      */
     _buildModel() {
+        if(this.model_xml == undefined){
+            return
+        }
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
             if (err) {
@@ -81,13 +84,13 @@ class EgsmModel {
     getStageInfoArray() {
         var result = []
         for (var [key, entry] of this.stages) {
-            //if (entry.type == 'ACTIVITY') {
+            if (entry.type == 'ACTIVITY') {
             result.push({
                 name: entry.id,
                 status: entry.status,
                 state: entry.state
             })
-            //}
+            }
         }
         return result
     }

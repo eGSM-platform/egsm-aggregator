@@ -80,6 +80,7 @@ class MonitoringManager {
                 owner: this.jobs.get(jobid).owner,
                 host: CONNCONFIG.getConfig().socket_host,
                 port: CONNCONFIG.getConfig().socket_port,
+                extract: this.jobs.get(jobid).getExtract()
             }
         }
         console.warn('Job id not found ' + jobid)

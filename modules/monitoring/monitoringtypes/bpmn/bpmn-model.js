@@ -29,6 +29,10 @@ class BpmnModel {
      * The result is saved in the this.parsed_model_xml attribute
      */
     parseModelXml() {
+        if(this.model_xml == undefined){
+            this.parsed_model_xml = undefined
+            return
+        }
         var context = this
         xml2js.parseString(this.model_xml, function (err, result) {
             if (err) {
@@ -43,6 +47,9 @@ class BpmnModel {
      * As a prerequirement parseModelXml() function has to be called before this function
      */
     _buildModel() {
+        if(this.parsed_model_xml == undefined){
+            return
+        }
         //Creating a temporary map containing all blocks and their position information, to make data retieval efficient
         //The information from this map will be used during block instantiations
         var diagram_elements = new Map()
@@ -208,13 +215,18 @@ class BpmnModel {
      */
     applyDeviation(deviation) {
         switch (deviation.type) {
-            //SkipDeviation consists of an OutOfOrder activityand a Skipped Sequence
+            //SkipDeviation consists of an OutOfOrder activity and a Skipped Sequence
             //It is represented as an arrow from the last correctly executed activity to the
             //OutOfOrder one
             case 'SKIPPED':
                 var firstSkippedBlock = deviation.block_a[0]
                 var lastSkippedBlock = deviation.block_a.at(-1)
-
+                if (this.construcs.has(deviation.block_a[0])) {
+                    this.construcs.get(deviation.block_a[0]).addDeviation('SKIPPED')
+                }
+                if (this.construcs.has(deviation.block_b)) {
+                    //this.construcs.get(deviation.block_b).addDeviation('INCORRECT_EXECUTION')
+                }
                 //It means that the first and last blocks which has been skipped exist in the BPMN diagram as well
                 if (this.construcs.has(firstSkippedBlock) && this.construcs.has(lastSkippedBlock)) {
                     var inputEdge = this.construcs.get(firstSkippedBlock).inputs?.[0] || 'NONE'
@@ -273,12 +285,16 @@ class BpmnModel {
             case 'INCORRECT_EXECUTION':
                 deviation.block_a.forEach(element => {
                     if (this.construcs.has(element)) {
-                        this.construcs.get(element).addDeviation('MULTI_EXECUTION')
+                        this.construcs.get(element).addDeviation('INCORRECT_EXECUTION')
                     }
                 });
                 break;
             case 'INCORRECT_BRANCH':
-
+                deviation.block_a.forEach(element => {
+                    if (this.construcs.has(element)) {
+                        this.construcs.get(element).addDeviation('INCORRECT_BRANCH')
+                    }
+                });
                 break;
         }
     }
@@ -295,11 +311,7 @@ class BpmnModel {
      * Gets the current XML representation of the model (containing the deviations as well)
      * @returns String containing the XML description of the diagram
      */
-    getModelXml(deviation, deviation2) {
-        //TMP
-        this.applyDeviation(deviation)
-        this.applyDeviation(deviation2)
-        //TMP
+    getModelXml() {
         var builder = new xml2js.Builder();
         return builder.buildObject(this.parsed_model_xml);
     }
@@ -342,7 +354,7 @@ class BpmnModel {
         this.parsed_model_xml['bpmn2:definitions']['bpmn2:process'][0]['bpmn2:sequenceFlow'].push(newBpmnSequence)
         this.parsed_model_xml['bpmn2:definitions']['bpmndi:BPMNDiagram'][0]['bpmndi:BPMNPlane'][0]['bpmndi:BPMNEdge'].push(newBpmnEdge)
         this.overlay_constructs.set(id, new BpmnConnection(id, '', sourceNode, targetNode, waypoints))
-        this.overlay_constructs.get(id).status = 'FAULTY'
+        this.overlay_constructs.get(id).status = 'HIGHLIGHTED'
         return id
     }
 

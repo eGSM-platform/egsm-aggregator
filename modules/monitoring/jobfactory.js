@@ -1,6 +1,9 @@
+const { ArtifactEventProcessing } = require('./monitoringtypes/artifact-event-processing')
 const { ArtifactUsageStatisticProcessing } = require("./monitoringtypes/artifact-usage-statistic-processing")
 const { ArtifactUnreliabilityAlert } = require("./monitoringtypes/artifact-unreliability-alert")
 const { ProcessDeviationDetection } = require("./monitoringtypes/process-deviation-detection")
+const { RealTimeProcessAggregation } = require('./monitoringtypes/real-time-process-aggregation')
+
 var CONNCONF = require('../egsm-common/config/connectionconfig')
 const { BpmnJob } = require("./monitoringtypes/bpmn/bpmn-job")
 
@@ -26,6 +29,10 @@ class JobFactory {
             var id = config['id']
             var owner = config['owner']
             switch (config['type']) {
+                case 'artifact-event-processing': {
+                    var frequency = config['frequency']
+                    return new ArtifactEventProcessing(id, owner, frequency)
+                }
                 case 'artifact-usage-statistic-processing': {
                     var monitoredartifacts = config['monitoredartifacts']
                     var frequency = config['frequency']
@@ -51,7 +58,13 @@ class JobFactory {
                     var monitored = config['monitored']
                     var notificationrules = config['notificationrules']
                     var perspectives = config['perspectives']
-                    return new BpmnJob(config['id'], [], owner, monitored, [], notificationrules, this.notification_manager,perspectives)
+                    return new BpmnJob(config['id'], [], owner, monitored, [], notificationrules, this.notification_manager, perspectives)
+                }
+                case 'real-time-process-aggregation': {
+                    var brokers = [CONNCONF.getConfig().primary_broker]
+                    var processtype = config['processtype']
+                    var notificationrules = config['notificationrules']
+                    return new RealTimeProcessAggregation(config['id'], brokers, owner, processtype, notificationrules, this.notification_manager)
                 }
                 //Add further types when implemented!
                 default:

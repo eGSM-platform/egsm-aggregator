@@ -39,15 +39,16 @@ class ArtifactUnreliabilityAlert extends Job {
     onPeriodElapsed() {
         //Iterating through monitored Artifacts and check
         this.monitoredartifacts.forEach(artifact => {
+            var context = this
             DB.readArtifactDefinition(artifact.type, artifact.id).then((artifactdata) => {
-                var currentFaultinessValue = artifactdata.faulty_rates.get(this.windowSize)
-                if (!Validator.validateArtifactFaultyRate(currentFaultinessValue, this.faultinessthreshold)) {
-                    var message = `Faulty rate of artifact [${artifact.type}/${artifact.id}] for window [${this.windowsize}] is [${currentFaultinessValue}]... Above setted threshold ${this.faultinessthreshold}`
+                var currentFaultinessValue = artifactdata.faulty_rates.get(context.windowsize)
+                if (!Validator.validateArtifactFaultyRate(currentFaultinessValue, context.faultinessthreshold)) {
+                    var message = `Faulty rate of artifact [${artifact.type}/${artifact.id}] for window [${context.windowsize}] is [${currentFaultinessValue}]... Above set threshold ${context.faultinessthreshold}`
                     var errors = [{
                         type: 'artifact_faulty_rate',
                     }]
-                    var notification = new ArtifactNotification(this.id, CONNCONF.getConfig().self_id, this.job_type, message, artifact.type, artifact.id, errors)
-                    this.notificationmanager.notifyEntities(notification, this.notificationrules)
+                    var notification = new ArtifactNotification(context.id, CONNCONF.getConfig().self_id, context.job_type, message, artifact.type, artifact.id, errors)
+                    context.notificationmanager.notifyEntities(notification, context.notificationrules)
                 }
             })
         });
