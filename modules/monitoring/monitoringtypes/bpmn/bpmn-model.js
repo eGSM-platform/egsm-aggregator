@@ -29,7 +29,7 @@ class BpmnModel {
      * The result is saved in the this.parsed_model_xml attribute
      */
     parseModelXml() {
-        if(this.model_xml == undefined){
+        if (this.model_xml == undefined) {
             this.parsed_model_xml = undefined
             return
         }
@@ -47,7 +47,7 @@ class BpmnModel {
      * As a prerequirement parseModelXml() function has to be called before this function
      */
     _buildModel() {
-        if(this.parsed_model_xml == undefined){
+        if (this.parsed_model_xml == undefined) {
             return
         }
         //Creating a temporary map containing all blocks and their position information, to make data retieval efficient
@@ -290,11 +290,9 @@ class BpmnModel {
                 });
                 break;
             case 'INCORRECT_BRANCH':
-                deviation.block_a.forEach(element => {
-                    if (this.construcs.has(element)) {
-                        this.construcs.get(element).addDeviation('INCORRECT_BRANCH')
-                    }
-                });
+                if (this.construcs.has(deviation.block_a)) {
+                    this.construcs.get(deviation.block_a).addDeviation('INCORRECT_BRANCH')
+                }
                 break;
         }
     }
