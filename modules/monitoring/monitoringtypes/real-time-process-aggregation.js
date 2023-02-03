@@ -1,6 +1,9 @@
 const { Job } = require('./job')
 
-//One job should do the aggregation for one type of process
+/**
+ * Aggregates information from multiple process instances in real-time
+ * One job does the aggregation for one type of process
+ */
 class RealTimeProcessAggregation extends Job {
     constructor(id, brokers, owner, processtype, notificationrules, notificationmanager) {
         super(id, 'real-time-process-aggregation', brokers, owner, [], ['native_' + processtype], [], notificationrules, notificationmanager)
@@ -8,6 +11,10 @@ class RealTimeProcessAggregation extends Job {
         this.data = new Map() //perspective -> stage -> {regular, faulty, unopened, opened, closed, outoforder, skipped, ontime} 
     }
 
+    /**
+     * Called automatically in case of an update from any monitored process
+     * @param {Object} messageObj Received process event object 
+     */
     onProcessEvent(messageObj) {
         console.log(messageObj)
         if (!this.engines.has(messageObj.process_id)) {
@@ -17,6 +24,9 @@ class RealTimeProcessAggregation extends Job {
         this.analyze()
     }
 
+    /**
+     * Update the aggregated information
+     */
     analyze() {
         this.data.clear()
         for (const [key, instance] of this.engines) {
@@ -60,6 +70,11 @@ class RealTimeProcessAggregation extends Job {
         this.analyze()
     }
 
+    /**
+     * Get job extract, which contains the aggregated information
+     * @returns List of process perspectives, which contains a list of all stages and
+     * their aggregated data
+     */
     getExtract() {
         var result = []
         for (var entry of this.data.entries()) {

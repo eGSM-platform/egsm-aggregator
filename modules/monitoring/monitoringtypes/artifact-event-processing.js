@@ -5,9 +5,9 @@ const { Job } = require('./job')
 module.id = "ARTIFACT_EV_PRO"
 
 /**
- * A type of Deamon Jobs, perfirming Artifact Event processing periodically
- * Everytime the preset time elapses, it wakes up, retrieves all unprocessed Artifact Event from the Database, then it
- * tries to form pairs of events (attached + detached). If a pair has been created it verifies if the regarding Process instnace
+ * A type of Daemon Jobs, performing Artifact Event processing periodically
+ * Every time the preset time elapses, it wakes up, retrieves all unprocessed Artifact Event from the Database, then it
+ * tries to form pairs of events (attached + detached). If a pair has been created it verifies if the regarding Process instance
  * is already terminated. If yes then it will set the two events to 'Processed' in the Database and it will add a new Entry to the 
  * 'Artifact Usage' table, referencing the two Events and the Process Instance.  
  */

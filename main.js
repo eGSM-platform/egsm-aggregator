@@ -30,16 +30,3 @@ MQTTCOMM.initPrimaryBrokerConnection(CONNCONFIG.getConfig().primary_broker).then
     LOG.logSystem('DEBUG', `Unique ID found: [${result}]`, module.id)
     LOG.logSystem('DEBUG', 'Aggregator initialization ready!', module.id)
 })
-
-/*AUX.sleep(2000).then(() => {
-    rules = { PROCESS_TYPE: 'Inland_Transportation_Process_Simple' }
-    MQTTCOMM.discoverProcessGroupMembers(rules).then((res) => {
-        console.log(res)
-    })
-    for(var i = 0; i < 100; i++){
-        var notifman =new NotificationManager()
-        var notif =  new ProcessNotification(`job${i}`,'aggr-1','jobtype1','This is just a message, no meaning at all','process type 1','id1234',["random error","something wrong error"])
-        notif.notified = ["Company-1"]
-        notifman.notifyStakeholder('Company-1',notif)
-    }
-})*/

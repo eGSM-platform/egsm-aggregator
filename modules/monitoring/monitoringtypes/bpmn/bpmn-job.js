@@ -8,6 +8,10 @@ const { SkipDeviation, IncompleteDeviation } = require("./process-perspective");
 
 module.id = "BPMN"
 
+/**
+ * Job to perform automated deviation detection on a process instance
+ * and to provide functionalities for visualization on the front-end
+ */
 class BpmnJob extends Job {
   constructor(id, brokers, owner, monitored, monitoredprocessgroups, notificationrules, notificationmanager, perspectives) {
     super(id, 'bpmn', brokers, owner, monitored, monitoredprocessgroups, [], notificationrules, notificationmanager)
@@ -18,6 +22,10 @@ class BpmnJob extends Job {
     });
   }
 
+  /**
+   * Called automatically when a process event received from the monitored process 
+   * @param {Object} messageObj received process event object 
+   */
   onProcessEvent(messageObj) {
     console.log(messageObj)
     var process = messageObj.process_type + '/' + messageObj.process_id + '__' + messageObj.process_perspective
@@ -45,6 +53,10 @@ class BpmnJob extends Job {
     }*/
   }
 
+  /**
+   * Returns with the up-to-date version of the BPMN xml definition
+   * @returns BPMN.xml
+   */
   getBpmnDiagrams() {
     var resultPerspectives = []
     this.perspectives.forEach(element => {
@@ -60,6 +72,11 @@ class BpmnJob extends Job {
     return result
   }
 
+  /**
+   * Returns with the up-to-date overlays, which should be applied on the BPMN diagram
+   * to visualize the current state of the process instance
+   * @returns List of overlay reports
+   */
   getBpmnOverlay() {
     var overlays = []
     this.perspectives.forEach(element => {
@@ -73,6 +90,11 @@ class BpmnJob extends Job {
     return result
   }
 
+  /**
+   * Complete update for the front-end
+   * @returns Returns with an object which contains the up-to-date BPMN.cml
+   * and the overlays
+   */
   getCompleteUpdate() {
     var overlays = []
     var resultPerspectives = []
@@ -94,13 +116,11 @@ class BpmnJob extends Job {
     return result
   }
 
+  /**
+   * Triggers an whole update for the front-end
+   */
   triggerCompleteUpdateEvent() {
-    console.info('EMIT')
-
     this.eventEmitter.emit('job-update', this.getCompleteUpdate())
-    //this.eventEmitter.emit('job-update', this.getBpmnOverlay())
-    //var context = this
-    //setTimeout(function(){context.eventEmitter.emit('job-update', context.getBpmnOverlay())},1000);
   }
 }
 

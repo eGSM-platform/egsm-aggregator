@@ -1,8 +1,0 @@
-<content>
-    <broker>
-        <host>localhost</host>
-        <port>1883</port>
-        <user-name></user-name>
-        <user-password></user-password>
-    </broker>
-</content>
