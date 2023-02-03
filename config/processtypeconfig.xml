@@ -1,9 +1,0 @@
-<content>
-    <!-- Defining Process types -->
-    <processtype>
-        <type-name>DummyProcessType</type-name>
-        <egsm-info>./config/models/infoModel_vm.xsd</egsm-info>
-        <egsm-model>./config/models/egsm_vm.xml</egsm-model>
-        <bpmn-model>./config/models/bpmn.xml</bpmn-model>
-    </processtype>
-</content>

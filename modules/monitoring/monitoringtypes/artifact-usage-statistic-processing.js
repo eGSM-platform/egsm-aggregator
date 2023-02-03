@@ -7,41 +7,49 @@ module.id = "ARTIFACT_US_P"
 
 const MAX_CONSIDERING_PERIOD = 1209600 // 2 Weeks
 
-function artifactUsageEntrySort(a, b) {
-    const timeA = a.detach_time
-    const timeB = b.detach_time
-    if (timeA > timeB) {
-        return -1;
-    }
-    if (timeA < timeB) {
-        return 1;
-    }
-    return 0;
-}
-
+/**
+ * Daemon Job maintaining Artifact Usage Statistics in the Database
+ */
 class ArtifactUsageStatisticProcessing extends Job {
     static initialized = false
+    /**
+     * 
+     * @param {String} id Job ID 
+     * @param {String} owner Job Owner
+     * @param {String[]} monitoredartifacts List of Artifact ID-s to monitor 
+     * @param {Number} frequency Frequency of Processing
+     */
     constructor(id, owner, monitoredartifacts, frequency) {
         if (ArtifactUsageStatisticProcessing.initialized) {
             throw new Error('ArtifactUsageStatisticProcessing is not allowed to start twice!');
         }
-        super(id, [], owner, [], [], monitoredartifacts, [], undefined)
+        super(id, 'artifact-usage-statistic-processing', [], owner, [], [], monitoredartifacts, [], undefined)
         this.frequency = frequency
+        for (var i = 2; i < 6; i += 2) {
+            this.monitoredartifacts.forEach(artifact => {
+                var iTmp = i
+                DB.getArtifactFaultyRateValue(artifact.type, artifact.id, iTmp).then((result) =>{
+                    if (result == undefined) {
+                        DB.addNewFaultyRateWindow(artifact.type, artifact.id, iTmp)
+                    }
+                })
+            })
+        }
+
         this.setPeriodicCall(this.onPeriodElapsed.bind(this), frequency)
         this.initialized = true
     }
 
+    /**
+     * Called when sleeping period elapsed and it performs the necessary processing to update the statistics in the Database
+     */
     onPeriodElapsed() {
-        //console.log(`ArtifactUsageStatisticProcessing onPeriodElapsed called`)
-
         this.monitoredartifacts.forEach(element => {
-            //console.log(`Processing Artifact ${element}`)
             DB.readArtifactDefinition(element.type, element.id).then((artifact) => {
                 if (artifact == undefined) {
-                    console.log('No artifact definition found')
+                    console.warn('No artifact definition found')
                     return
                 }
-                console.log('Artifact definition found')
                 //Find the entry with the smallest earliest_usage_entry_time (apply MAX_CONSIDERING_PERIOD in case of -1)
                 //And read the Artifact Usage entries from the calculated timestamp
                 var earliestTime = Date.now() / 1000
@@ -64,15 +72,18 @@ class ArtifactUsageStatisticProcessing extends Job {
                         var successCnt = 0
                         var newFaultyRateWindow = new FaultyRateWindow(key, -1, -1, -1)
                         for (var i = 0; i < artifactUsageEntries.length; i++) {
-                            if (artifactUsageEntries[i].outcome == 'success') {
+                            if (artifactUsageEntries[i].outcome == 'SUCCESS') {
                                 successCnt += 1
                             }
                             else {
                                 faultyCnt += 1
                             }
                             if (faultyCnt + successCnt >= key) {
-                                console.log('UPDATE')
-                                var newFaultyRateWindow = new FaultyRateWindow(key, (faultyCnt / successCnt) * 100, Math.floor(Date.now() / 1000), artifactUsageEntries[i].detach_time)
+                                var newValue = 100
+                                if(successCnt != 0){
+                                    newValue = (faultyCnt / successCnt) * 100
+                                }
+                                var newFaultyRateWindow = new FaultyRateWindow(key, newValue, Math.floor(Date.now() / 1000), artifactUsageEntries[i].detach_time)
                                 var nameElements = artifactUsageEntries[i].artifact_name.split('/')
                                 DB.updateArtifactFaultyRate(nameElements[0], nameElements[1], newFaultyRateWindow)
                                 break
@@ -84,6 +95,25 @@ class ArtifactUsageStatisticProcessing extends Job {
         })
     }
 }
+
+/**
+ * Sorting Artifact Usage Entries
+ * @param {Object} a First Usage Entry 
+ * @param {Object} b Second Usage Entry
+ * @returns 
+ */
+function artifactUsageEntrySort(a, b) {
+    const timeA = a.detach_time
+    const timeB = b.detach_time
+    if (timeA > timeB) {
+        return -1;
+    }
+    if (timeA < timeB) {
+        return 1;
+    }
+    return 0;
+}
+
 module.exports = {
     ArtifactUsageStatisticProcessing
 }

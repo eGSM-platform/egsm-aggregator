@@ -14,28 +14,27 @@ module.id = "MQTTCOMM"
 
 const ID_VERIFICATION_PERIOD = 1500 //Time the other Aggregators has to reply if their ID is identical with the one the local worker wants to use
 
-const PROCESS_DISCOVERY_PERIOD = 1500
+const PROCESS_DISCOVERY_PERIOD = 1500 //Waiting period used in the Process Discovery feature
 
 //Topic definitions
-const SUPERVISOR_TOPIC_IN = 'supervisor_aggregator_in'
-const SUPERVISOR_TOPIC_OUT = 'supervisor_aggregator_out'
-const AGGREGATOR_GLOBAL_TOPIC_IN = 'aggregator_global_in'
-const AGGREGATOR_GLOBAL_TOPIC_OUT = 'aggregator_global_out'
-var TOPIC_SELF = ''
+const AGGREGATORS_TO_SUPERVISORS = 'aggregators_to_supervisor'
+const SUPERVISOR_TO_AGGREGATORS = 'supervisor_to_aggregators'
+const WORKERS_TO_AGGREGATORS = 'workers_to_aggregators'
+const AGGREGATORS_TO_WORKERS = 'aggregators_to_workers'
 
 var MQTT_HOST = undefined
 var MQTT_PORT = undefined;
 var MQTT_USER = undefined;
 var MQTT_USER_PW = undefined
 
-var REQUEST_PROMISES = new Map()
+var REQUEST_PROMISES = new Map() // Request id -> Responsible Promise Object
 var REQUEST_BUFFERS = new Map() // Request id -> Usage specific storage place (used only for specific type of requests)
 
-var MONITORING_MANAGER = undefined
+var MONITORING_MANAGER = undefined // Reference to the used Monitoring Manager instance
 
 function onMessageReceived(hostname, port, topic, message) {
     LOG.logSystem('DEBUG', `New message received from topic: ${topic}`, module.id)
-    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TOPIC_OUT && topic != TOPIC_SELF)) {
+    if ((hostname != MQTT_HOST || port != MQTT_PORT) || (topic != SUPERVISOR_TO_AGGREGATORS && topic != CONNCONFIG.getConfig().self_id && topic != WORKERS_TO_AGGREGATORS)) {
         LOG.logSystem('DEBUG', `Reveived message is not intended to handle here`, module.id)
         return
     }
@@ -48,78 +47,91 @@ function onMessageReceived(hostname, port, topic, message) {
     if (!MONITORING_MANAGER) {
         LOG.logSystem('WARNING', `Monitoring Manager has not been added to MQTT Communication module. Some features may no work as intended!`, module.id)
     }
-    //The message has been published by the supervisor to the shared SUPERVISOR_TOPIC_OUT
+    //The message has been published by the supervisor to the shared SUPERVISOR_TO_AGGREGATORS
     //These messages have been delived to all other Aggregators too
-    if (topic == SUPERVISOR_TOPIC_OUT) {
+    if (topic == SUPERVISOR_TO_AGGREGATORS) {
         switch (msgJson['message_type']) {
-            case 'PING':
+            case 'PING': {
                 LOG.logSystem('DEBUG', `PING requested`, module.id)
                 var response = {
                     request_id: msgJson['request_id'],
                     message_type: 'PONG',
                     sender_id: CONNCONFIG.getConfig().self_id,
                     payload: {
-                        hostname: 'NA',//ROUTES.getRESTCredentials()['hostname'],
-                        port: 0,//ROUTES.getRESTCredentials()['port'],
+                        hostname: CONNCONFIG.getConfig().socket_host,
+                        port: CONNCONFIG.getConfig().socket_port,
                         uptime: process.uptime(),
                         activity_mumber: MONITORING_MANAGER.getNumberOfJobs(),
                         capacity: MONITORING_MANAGER.getCapacity()
                     }
                 }
-                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 break;
-            case 'NEW_JOB_SLOT':
+            }
+            case 'NEW_JOB_SLOT': {
                 LOG.logSystem('DEBUG', `NEW_JOB_SLOT requested`, module.id)
                 if (MONITORING_MANAGER.hasFreeSlot()) {
                     var response = {
                         request_id: msgJson['request_id'],
-                        free_slots: MONITORING_MANAGER.getCapacity() -MONITORING_MANAGER.getNumberOfJobs(),
+                        free_slots: MONITORING_MANAGER.getCapacity() - MONITORING_MANAGER.getNumberOfJobs(),
                         message_type: 'NEW_JOB_SLOT_RESP',
                         sender_id: CONNCONFIG.getConfig().self_id
                     }
-                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
+                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 }
                 break
+            }
+            case 'SEARCH': {
+                LOG.logWorker('DEBUG', `SEARCH requested for ${msgJson['payload']['job_id']}`, module.id)
+                if (MONITORING_MANAGER.getJobInfo(msgJson['payload']['job_id'])) {
+                    var response = {
+                        request_id: msgJson['request_id'],
+                        message_type: 'SEARCH',
+                        sender_id: CONNCONFIG.getConfig().self_id,
+                        payload: { job: MONITORING_MANAGER.getJobInfo(msgJson['payload']['job_id']) },
+                    }
+                    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
+                }
+                break
+            }
         }
     }
-    else if (topic == AGGREGATOR_GLOBAL_TOPIC_IN) {
+    else if (topic == WORKERS_TO_AGGREGATORS) {
         switch (msgJson['message_type']) {
             case 'PROCESS_GROUP_MEMBER_DISCOVERY_RESP': {
                 LOG.logSystem('DEBUG', `PROCESS_GROUP_MEMBER_DISCOVERY_RESP message received, request_id: [${msgJson['request_id']}]`, module.id)
                 if (REQUEST_PROMISES.has(msgJson['request_id'])) {
-                    REQUEST_BUFFERS.get(msgJson['request_id']).push(...msgJson['member_engines'])
+                    REQUEST_BUFFERS.get(msgJson['request_id']).push(...msgJson['payload']['engines'])
                 }
                 break;
             }
         }
     }
-
-    //These messages were sent by the Supervisor or by another Aggregators and only this Aggregator is receiveing it
-    else if (topic == TOPIC_SELF) {
+    else if (topic == CONNCONFIG.getConfig().self_id) {
+        LOG.logSystem('DEBUG', `Dedicated message received`, module.id)
         switch (msgJson['message_type']) {
             case 'NEW_JOB': {
                 LOG.logSystem('DEBUG', `NEW_JOB requested`, module.id)
-                var result = MONITORING_MANAGER.startJob(msgJson['payload']['jobconfig'])//createNewEngine(msgJson['payload'])
+                var result = MONITORING_MANAGER.startJob(msgJson['payload']['job_config'])//createNewEngine(msgJson['payload'])
                 var response = {
                     request_id: msgJson['request_id'],
                     payload: { result: result },
                     message_type: 'NEW_JOB_RESP'
                 }
-                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, TOPIC_SELF, JSON.stringify(response))
+                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
                 break;
             }
-            case 'GET_JOB_LIST': {
-                LOG.logSystem('DEBUG', `GET_JOB_LIST requested`, module.id)
-                var resPayload = MONITORING_MANAGER.getAllJobs()
-                var response = {
-                    request_id: msgJson['request_id'],
-                    payload: resPayload,
-                    message_type: 'GET_JOB_LIST_RESP'
-                }
-                MQTT.publishTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_IN, JSON.stringify(response))
-                break;
-            }
-
+            //case 'GET_JOB_LIST': {
+            //    LOG.logSystem('DEBUG', `GET_JOB_LIST requested`, module.id)
+            //    var resPayload = MONITORING_MANAGER.getAllJobs()
+            //    var response = {
+            //        request_id: msgJson['request_id'],
+            //        payload: resPayload,
+            //        message_type: 'GET_JOB_LIST_RESP'
+            //    }
+            //    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_SUPERVISORS, JSON.stringify(response))
+            //    break;
+            //}
         }
     }
 }
@@ -170,51 +182,63 @@ async function initPrimaryBrokerConnection(broker) {
 
     //Find an unused, unique ID for the Engine
     while (true) {
-        TOPIC_SELF = UUID.v4();
-        MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, TOPIC_SELF)
-        var result = await checkIdCandidate(TOPIC_SELF)
+        var topicSelf = UUID.v4();
+        MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, topicSelf)
+        var result = await checkIdCandidate(topicSelf)
         if (result == 'ok') {
             break;
         }
         else {
-            MQTT.unsubscribeTopic(MQTT_HOST, MQTT_PORT, TOPIC_SELF)
+            MQTT.unsubscribeTopic(MQTT_HOST, MQTT_PORT, topicSelf)
         }
     }
-    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TOPIC_OUT)
-    return TOPIC_SELF
+    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, WORKERS_TO_AGGREGATORS)
+    MQTT.subscribeTopic(MQTT_HOST, MQTT_PORT, SUPERVISOR_TO_AGGREGATORS)
+    return topicSelf
 }
 
-//This is similar to Observer design pattern and necessary to avoid circular dependency of MQTT module
+/**
+ * Setting the Monitoring Manager instance used by this module
+ * This is similar to Observer design pattern and necessary to avoid circular dependency of MQTT module 
+ * @param {Object} manager Reference to the new MonitoringManager object 
+ */
 function setMonitoringManager(manager) {
     MONITORING_MANAGER = manager
 }
 
-async function discoverProcessGroupMembers(groupid) {
+/**
+ * Discovers the online Processes satisfying a set of rules
+ * @param {Object} rules Rules the Engines should satisfy. 
+ * The function broadcasts a message which is received by each Workers. If any of them has at least one engine satisfying the rules it will reply
+ * Finally the function receives the reply, and builds a set containing all Process Instances which has at least one engine among the received replies 
+ * @returns Promise will contain a set of Engine Id-s (<Process Type>/<Instnace ID>)
+ */
+async function discoverProcessGroupMembers(rules) {
     var request_id = UUID.v4();
     var message = {
         "request_id": request_id,
         "message_type": 'PROCESS_GROUP_MEMBER_DISCOVERY',
-        "group_id": groupid
+        "payload": { "rules": rules }
     }
-    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATOR_GLOBAL_TOPIC_OUT, JSON.stringify(message))
+    MQTT.publishTopic(MQTT_HOST, MQTT_PORT, AGGREGATORS_TO_WORKERS, JSON.stringify(message))
     var promise = new Promise(async function (resolve, reject) {
         REQUEST_PROMISES.set(request_id, resolve)
         REQUEST_BUFFERS.set(request_id, [])
         await wait(PROCESS_DISCOVERY_PERIOD)
         LOG.logSystem('DEBUG', `discoverProcessGroupMembers waiting period elapsed`, module.id)
-        var result = REQUEST_BUFFERS.get(request_id) || []
+        var result = REQUEST_BUFFERS.get(request_id)
         REQUEST_PROMISES.delete(request_id)
         REQUEST_BUFFERS.delete(request_id)
         if (result.length == 0) {
             resolve(new Set([]))
         }
         else {
-            var final = new Set([])
-            //Result contains an Array of {process_type, process_instance, process_perspective} 
+            var final = new Set()
+            //Result contains an Array of {process_type, process_instance, process_perspective...} created by getEngineDetails function 
             //In case of multiple perspectives one process instance can be represented multiple times,
-            //so we need to handle it
-            result.forEach(element => {
-                final.add(element.process_type + '/' + element.process_instance)
+            //so we need to handle it, since we want only process_type + process_instance 
+            result.forEach(engine => {
+                final.add(engine.name)
             });
             resolve(final)
         }
