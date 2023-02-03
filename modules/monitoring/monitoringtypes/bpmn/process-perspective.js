@@ -102,6 +102,7 @@ class ProcessPerspective {
             deviations = this._analyzeRecursive(this.egsm_model.model_roots[key], deviations)
         }
         //Update Status and State of BPMN Activities
+        this.bpmn_model.resetModel()
         this.bpmn_model.applyEgsmStageArray(this.egsm_model.getStageInfoArray())
         //Apply deviations on the BPMN model
         deviations.forEach(element => {

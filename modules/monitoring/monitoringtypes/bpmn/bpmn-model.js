@@ -311,11 +311,7 @@ class BpmnModel {
      * Gets the current XML representation of the model (containing the deviations as well)
      * @returns String containing the XML description of the diagram
      */
-    getModelXml(deviation, deviation2) {
-        //TMP
-        //this.applyDeviation(deviation)
-        //this.applyDeviation(deviation2)
-        //TMP
+    getModelXml() {
         var builder = new xml2js.Builder();
         return builder.buildObject(this.parsed_model_xml);
     }
@@ -358,7 +354,7 @@ class BpmnModel {
         this.parsed_model_xml['bpmn2:definitions']['bpmn2:process'][0]['bpmn2:sequenceFlow'].push(newBpmnSequence)
         this.parsed_model_xml['bpmn2:definitions']['bpmndi:BPMNDiagram'][0]['bpmndi:BPMNPlane'][0]['bpmndi:BPMNEdge'].push(newBpmnEdge)
         this.overlay_constructs.set(id, new BpmnConnection(id, '', sourceNode, targetNode, waypoints))
-        this.overlay_constructs.get(id).status = 'FAULTY'
+        this.overlay_constructs.get(id).status = 'HIGHLIGHTED'
         return id
     }
 
