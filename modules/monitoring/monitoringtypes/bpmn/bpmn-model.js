@@ -221,7 +221,12 @@ class BpmnModel {
             case 'SKIPPED':
                 var firstSkippedBlock = deviation.block_a[0]
                 var lastSkippedBlock = deviation.block_a.at(-1)
-
+                if (this.construcs.has(deviation.block_a[0])) {
+                    this.construcs.get(deviation.block_a[0]).addDeviation('SKIPPED')
+                }
+                if (this.construcs.has(deviation.block_b)) {
+                    //this.construcs.get(deviation.block_b).addDeviation('INCORRECT_EXECUTION')
+                }
                 //It means that the first and last blocks which has been skipped exist in the BPMN diagram as well
                 if (this.construcs.has(firstSkippedBlock) && this.construcs.has(lastSkippedBlock)) {
                     var inputEdge = this.construcs.get(firstSkippedBlock).inputs?.[0] || 'NONE'
@@ -280,12 +285,16 @@ class BpmnModel {
             case 'INCORRECT_EXECUTION':
                 deviation.block_a.forEach(element => {
                     if (this.construcs.has(element)) {
-                        this.construcs.get(element).addDeviation('MULTI_EXECUTION')
+                        this.construcs.get(element).addDeviation('INCORRECT_EXECUTION')
                     }
                 });
                 break;
             case 'INCORRECT_BRANCH':
-
+                deviation.block_a.forEach(element => {
+                    if (this.construcs.has(element)) {
+                        this.construcs.get(element).addDeviation('INCORRECT_BRANCH')
+                    }
+                });
                 break;
         }
     }

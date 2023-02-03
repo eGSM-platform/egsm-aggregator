@@ -9,6 +9,7 @@ class RealTimeProcessAggregation extends Job {
     }
 
     onProcessEvent(messageObj) {
+        console.log(messageObj)
         if (!this.engines.has(messageObj.process_id)) {
             this.engines.set(messageObj.process_id, new Map())
         }
@@ -46,7 +47,6 @@ class RealTimeProcessAggregation extends Job {
      * @param {String} processid ID of the process 
      * @param {Object} event Process Event (created/destructed)
      */
-    //OVERRIDE
     onGroupChange(processid, event) {
         if (event.type == 'created') {
             this.addMonitoredProcess(processid)
@@ -58,6 +58,22 @@ class RealTimeProcessAggregation extends Job {
             }
         }
         this.analyze()
+    }
+
+    getExtract() {
+        var result = []
+        for (var entry of this.data.entries()) {
+            var key = entry[0],
+            value = entry[1];
+            var stages = []
+            for (var entry2 of value.entries()) {
+                var key2 = entry2[0],
+                value2 = entry2[1];
+                stages.push({ name: key2, stage: value2 })
+            }
+            result.push({name:key,stages:stages})
+        }
+        return result
     }
 }
 

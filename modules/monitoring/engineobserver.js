@@ -116,7 +116,7 @@ async function addProcess(instance_id, onchange) {
         MQTT.subscribeTopic(hostname, port, instance_id + '/adhoc')
     }
     else {
-        LOG.logWorker('DEBUG', `Process [${instance_id}] is alredy registered`, module.id)
+        LOG.logWorker('DEBUG', `Process [${instance_id}] is already registered`, module.id)
         ENGINES.get(instance_id).onchange.add(onchange)
     }
 }

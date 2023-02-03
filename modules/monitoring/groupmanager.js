@@ -18,22 +18,22 @@ var LOADED_GROUPS = new Map() //groupid -> {member_processes:set(), onchange:set
  */
 function onProcessLifecycleEvent(messageObj) {
     //Iterating through the loaded groups and adding the new process if is satisfies the rules
-    var processid = messageObj.process.process_type + '/' + messageObj.process.instance_id
     for (var [groupName, group] of LOADED_GROUPS.entries()) {
         if (messageObj.type == 'created') {
             if (Validator.isRulesSatisfied(messageObj.process, group.membership_rules)) {
-                group.member_processes.add(processid)
+                group.member_processes.add(messageObj.process['engine_id'])
                 for (var notifFunction of group.onchange) {
-                    notifFunction(processid, { type: messageObj.type })
+                    notifFunction(messageObj.process['engine_id'], { type: messageObj.type })
                 }
             }
         }
         else if (messageObj.type == 'destructed') {
-            if (group.member_processes.has(processid)) {
+
+            if (group.member_processes.has(messageObj.process['engine_id'])) {
                 for (var notifFunction of group.onchange) {
-                    notifFunction(processid, { type: messageObj.type })
+                    notifFunction(messageObj.process['engine_id'], { type: messageObj.type })
                 }
-                group.member_processes.delete(processid)
+                group.member_processes.delete(messageObj.process['engine_id'])
             }
         }
     }
@@ -63,7 +63,7 @@ async function subscribeGroupChanges(groupid, onchange) {
                 //Group found in DB, discovering online processes
                 LOG.logSystem('DEBUG', `Requested Process Group [${groupid}] is found in the Database`)
                 MQTTCONN.discoverProcessGroupMembers(JSON.parse(groupData.membership_rules)).then((processes) => {
-                    LOADED_GROUPS.set(groupid, { membership_rules: JSON.parse(groupData.membership_rules), member_processes: new Set(...processes), onchange: new Set([onchange]) })
+                    LOADED_GROUPS.set(groupid, { membership_rules: JSON.parse(groupData.membership_rules), member_processes: processes, onchange: new Set([onchange]) })
                     return resolve(processes)
                 })
             })
